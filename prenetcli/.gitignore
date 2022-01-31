@@ -13,3 +13,4 @@ Cargo.lock
 *.sec
 *.key
 *.bin
+*.json
