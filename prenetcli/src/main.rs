@@ -15,8 +15,15 @@ use umbral_pre::*;
 
 #[derive(Serialize, Deserialize)]
 struct Keypair {
-    public_key: String,
+    public_key: PublicKey,
     secret_key: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Translator {
+    owner_pubkey: PublicKey,
+    capsule: Capsule,
+    translation_key: Vec<u8>,
 }
 
 fn parse_keypair_file(path: &OsStr) -> std::io::Result<SecretKey> {
@@ -49,21 +56,16 @@ fn main() -> std::io::Result<()> {
             App::new("recrypt")
                 .about("Translates encryption key to a new pubkey")
                 .args([
-                    Arg::new("input")
-                        .allow_invalid_utf8(true)
-                        .help("Path of the file to be encrypted")
-                        .required(true),
                     Arg::new("owner_keypair")
                         .allow_invalid_utf8(true)
                         .help("Path of the keypair to encrypt the file with")
                         .required(true),
-                    Arg::new("receiver_keypair")
-                        .allow_invalid_utf8(true)
+                    Arg::new("receiver_pubkey")
                         .help("Path of the keypair to encrypt the file with")
                         .required(true),
                     Arg::new("output")
                         .allow_invalid_utf8(true)
-                        .help("Output path for the new encrypted file")
+                        .help("Output path for translator json")
                         .required(true),
                 ]),
         )
@@ -75,8 +77,9 @@ fn main() -> std::io::Result<()> {
                         .allow_invalid_utf8(true)
                         .help("Path of the file to be encrypted")
                         .required(true),
-                    Arg::new("owner_pubkey")
-                        .help("Public key of the file owner")
+                    Arg::new("translator")
+                        .allow_invalid_utf8(true)
+                        .help("Path of the translator json file")
                         .required(true),
                     Arg::new("receiver_keypair")
                         .allow_invalid_utf8(true)
@@ -100,12 +103,9 @@ fn main() -> std::io::Result<()> {
 
     match matches.subcommand() {
         Some(("encrypt", sub_matches)) => {
-            // Read the input file to a string
+            // Read the input file to a buffer
             let input_path = sub_matches.value_of_os("input").unwrap();
-            // let file = File::open(input_path)?;
-            // let mut buf_reader = BufReader::new(file);
             let plaintext = fs::read(input_path)?;
-            // buf_reader.read_to_string(&mut plaintext)?;
             // Read the keypair file
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
             let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;
@@ -123,16 +123,14 @@ fn main() -> std::io::Result<()> {
             let file = File::open("capsule.json")?;
             let capsule: Capsule = serde_json::from_reader(BufReader::new(file))?;
 
-            // Read cipher
-            // let reader = BufReader::new(File::open("cipher.bin")?);
-            // let ciphertext: Box<u8> = bincode::deserialize_from(reader).unwrap();
-
-            // Read keys
+            // Read owner key from file
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
             let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;
-            let keypair_path = sub_matches.value_of_os("receiver_keypair").unwrap();
-            let receiver_secret: SecretKey = parse_keypair_file(&keypair_path)?;
-            let receiver_public = receiver_secret.public_key();
+
+            // Read receiver pubkey from argunment
+            let receiver_public_str = sub_matches.value_of("receiver_pubkey").unwrap();
+            let receiver_public_json = format!("\"{}\"", receiver_public_str); // Turns raw string into json string
+            let receiver_public: PublicKey = serde_json::from_str(&receiver_public_json)?;
 
             // Fragmentation/verification is not used because we aren't using proxies
             let translation_key = generate_kfrags(
@@ -145,28 +143,29 @@ fn main() -> std::io::Result<()> {
                 false,
             )[0]
             .clone();
+
             let translated_key = reencrypt(&capsule, translation_key);
-            std::fs::write("translate.bin", translated_key.to_array()).unwrap();
+            let translator = Translator {
+                owner_pubkey: file_secret.public_key(),
+                capsule: capsule,
+                translation_key: translated_key.to_array().to_vec(),
+            };
+            let output_path = sub_matches.value_of_os("output").unwrap();
+            std::fs::write(output_path, serde_json::to_string(&translator).unwrap()).unwrap();
             Ok(())
         }
         Some(("decrypt", sub_matches)) => {
-            // Read capsule
-            let file = File::open("capsule.json")?;
-            let capsule: Capsule = serde_json::from_reader(BufReader::new(file))?;
-
             // Read cipher
             let input_path = sub_matches.value_of_os("input").unwrap();
             let reader = BufReader::new(File::open(input_path)?);
             let ciphertext: Box<[u8]> = bincode::deserialize_from(reader).unwrap();
-
-            // Read translation key
-            let translated_array = std::fs::read("translate.bin").unwrap();
-            let translated_key: VerifiedCapsuleFrag =
-                VerifiedCapsuleFrag::from_verified_bytes(translated_array).unwrap();
-
-            // Read file pub
-            let file_pub_str = sub_matches.value_of("owner_pubkey").unwrap();
-            let file_pub: PublicKey = serde_json::from_str(file_pub_str)?;
+            
+            // Read recrypt response
+            let translator_path = sub_matches.value_of_os("translator").unwrap();
+            let translator_array = std::fs::read(translator_path).unwrap();
+            let translator: Translator = serde_json::from_slice(&translator_array)?;
+            let translation_key =
+                VerifiedCapsuleFrag::from_verified_bytes(translator.translation_key).unwrap();
 
             // Read receiver secret
             let keypair_path = sub_matches.value_of_os("receiver_keypair").unwrap();
@@ -175,9 +174,9 @@ fn main() -> std::io::Result<()> {
             // Code the receiver runs
             let plaintext_receiver = decrypt_reencrypted(
                 &receiver_secret,
-                &file_pub,
-                &capsule,
-                [translated_key],
+                &translator.owner_pubkey,
+                &translator.capsule,
+                [translation_key],
                 &ciphertext,
             )
             .unwrap();
@@ -194,7 +193,7 @@ fn main() -> std::io::Result<()> {
             let secret_array = secret_box.as_secret().to_vec();
 
             let keypair = Keypair {
-                public_key: serde_json::to_string(&keypair.public_key())?,
+                public_key: keypair.public_key(),
                 secret_key: secret_array.to_owned(),
             };
             std::fs::write(output_path, serde_json::to_string(&keypair).unwrap()).unwrap();
