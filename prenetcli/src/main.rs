@@ -172,7 +172,7 @@ fn main() -> std::io::Result<()> {
             // Read cipher
             let input_path = sub_matches.value_of_os("input").unwrap();
             let reader = BufReader::new(File::open(input_path)?);
-            let ciphertext: Box<[u8]> = bincode::deserialize_from(reader).unwrap();
+            let cipher: Box<[u8]> = bincode::deserialize_from(reader).unwrap();
             
             // Read recrypt response
             let decryption_keys_path = sub_matches.value_of_os("decryption_keys").unwrap();
@@ -185,17 +185,17 @@ fn main() -> std::io::Result<()> {
             let keypair_path = sub_matches.value_of_os("receiver_keypair").unwrap();
             let receiver_secret: SecretKey = parse_keypair_file(&keypair_path)?;
 
-            // Code the receiver runs
-            let plaintext_receiver = decrypt_reencrypted(
+            // Decrypt the cipher
+            let plaintext = decrypt_reencrypted(
                 &receiver_secret,
                 &decryption_keys.owner_pubkey,
                 &decryption_keys.capsule,
                 [translated_key],
-                &ciphertext,
+                &cipher,
             )
             .unwrap();
-            let plain_vec = plaintext_receiver.to_vec();
-            println!("{}", String::from_utf8(plain_vec).unwrap());
+            let output_path = sub_matches.value_of_os("output").unwrap();
+            std::fs::write(output_path, &plaintext)?;
             Ok(())
         }
         Some(("keygen", sub_matches)) => {
