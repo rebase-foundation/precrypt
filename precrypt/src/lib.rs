@@ -60,7 +60,7 @@ pub fn precrypt(
    let file_size = f.metadata().unwrap().len();
    let mut batches_remaining = (file_size as f64 / memory_size as f64).ceil() as u64;
    let mut capsules: Vec<Capsule> = Vec::new();
-   // Remove ouput file file if it exists
+   // Remove output file file if it exists
    if std::path::Path::new(output_file).exists() {
       std::fs::remove_file(output_file)?;
    }

@@ -22,7 +22,7 @@ fn parse_keypair_file(path: &OsStr) -> std::io::Result<SecretKey> {
 }
 
 fn main() -> std::io::Result<()> {
-    let matches = App::new("prenet")
+    let matches = App::new("precrypt")
         .about("Cli for pre-network")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
@@ -151,7 +151,7 @@ fn main() -> std::io::Result<()> {
             let recryption_keys_array = std::fs::read(recryption_keys_path).unwrap();
             let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array)?;
 
-            // Read receiver pubkey from argunment
+            // Read receiver pubkey from argument
             let receiver_public_str = sub_matches.value_of("receiver_pubkey").unwrap();
             let receiver_public_json = format!("\"{}\"", receiver_public_str); // Turns raw string into json string
             let receiver_public: PublicKey = serde_json::from_str(&receiver_public_json)?;
