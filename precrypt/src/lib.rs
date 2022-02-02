@@ -197,7 +197,7 @@ pub fn decrypt(
    println!("Batches needed: {}", batches_remaining);
    // Read input file
    let f = File::open(input_path)?;
-   // Remove ouput file file if it exists
+   // Remove output file file if it exists
    if std::path::Path::new(output_file).exists() {
       std::fs::remove_file(output_file)?;
    }
