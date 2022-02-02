@@ -1,5 +1,7 @@
 use crate::DecryptionKeys;
 use crate::RecryptionKeys;
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -8,8 +10,6 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::thread;
 use umbral_pre::*;
-
-use std::time::Instant;
 
 struct EnChunkMessage {
    bytes: Vec<u8>,
@@ -23,20 +23,19 @@ struct DeChunkMessage {
 }
 
 // WARN: These numbers must be evenly divisible
-const MAX_MEM_BYTES: usize = 100000000; // Max amount you want to hold in memory at once
+const MAX_MEM_BYTES: usize = 50000000; // Max amount you want to hold in memory at once
 const THREADS: usize = 10; // Max number of threads you want to run
 // chunk_size = MAX_MEM_BYTES / THREADS
 
 pub fn encrypt_threaded(
-   f: &File,
+   input_path: &OsStr,
    file_key: SecretKey,
    output_keys: &OsStr,
-   output_file: &OsStr
+   output_file: &OsStr,
 ) -> std::io::Result<()> {
+   let f = File::open(input_path)?;
    let file_size = f.metadata().unwrap().len();
-   println!("File size: {}", file_size);
    let mut batches_remaining = (file_size as f64 / MAX_MEM_BYTES as f64).ceil() as u64;
-   println!("Batches needed: {}", batches_remaining);
    let mut capsules: Vec<Capsule> = Vec::new();
    // Remove ouput file file if it exists
    if std::path::Path::new(output_file).exists() {
@@ -48,17 +47,23 @@ pub fn encrypt_threaded(
       .create_new(true)
       .open(output_file)
       .unwrap();
-   while batches_remaining > 0 {
-      let start_time = Instant::now();
 
-      let (batch_encrypted, batch_capsules) = encrypt_batch_threaded(f, file_key.public_key())?;
-      let duration = start_time.elapsed();
+   println!("Encrypting file: {:?}", input_path);
+   let bar = ProgressBar::new(batches_remaining);
+   bar.set_style(
+      ProgressStyle::default_bar()
+         .template("{eta} [{bar:40.cyan/blue}] {percent}%")
+         .progress_chars("=>-"),
+   );
+   while batches_remaining > 0 {
+      let (batch_encrypted, batch_capsules) = encrypt_batch_threaded(&f, file_key.public_key())?;
       capsules.extend(batch_capsules);
       // Append encrypted chunks to file
       out.write(&batch_encrypted)?;
       batches_remaining -= 1;
-      println!("{} batches remain ({:?})", batches_remaining, duration);
+      bar.inc(1);
    }
+   bar.finish_and_clear();
 
    // Write out recryption keys
    let secret_box = file_key.to_secret_array();
@@ -117,13 +122,18 @@ fn encrypt_batch_threaded(f: &File, pubkey: PublicKey) -> std::io::Result<(Vec<u
 }
 
 pub fn decrypt_threaded(
-   f: &File,
+   input_path: &OsStr,
    output_file: &OsStr,
    receiver_key: SecretKey,
    decryption_keys: &mut DecryptionKeys,
 ) -> std::io::Result<()> {
-   let mut batches_remaining =  (decryption_keys.capsules.len() as f64 / THREADS as f64).ceil() as u64;
+   let mut batches_remaining =
+      (decryption_keys.capsules.len() as f64 / THREADS as f64).ceil() as u64;
    println!("Batches needed: {}", batches_remaining);
+   
+   // Read input file
+   let f = File::open(input_path)?;
+   
    // Remove ouput file file if it exists
    if std::path::Path::new(output_file).exists() {
       std::fs::remove_file(output_file)?;
@@ -134,16 +144,22 @@ pub fn decrypt_threaded(
       .create_new(true)
       .open(output_file)
       .unwrap();
-   while batches_remaining > 0 {
-      let start_time = Instant::now();
 
-      let batch_decrypted = decrypt_batch_threaded(f, &receiver_key, decryption_keys)?;
-      let duration = start_time.elapsed();
+   println!("Decrypting file: {:?}", input_path);
+   let bar = ProgressBar::new(batches_remaining);
+   bar.set_style(
+      ProgressStyle::default_bar()
+         .template("{eta} [{bar:40.cyan/blue}] {percent}%")
+         .progress_chars("=>-"),
+   );
+   while batches_remaining > 0 {
+      let batch_decrypted = decrypt_batch_threaded(&f, &receiver_key, decryption_keys)?;
       // Append encrypted chunks to file
       out.write(&batch_decrypted)?;
       batches_remaining -= 1;
-      println!("{} batches remain ({:?})", batches_remaining, duration);
+      bar.inc(1);
    }
+   bar.finish_and_clear();
    return Ok(());
 }
 

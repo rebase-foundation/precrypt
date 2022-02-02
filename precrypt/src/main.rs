@@ -124,13 +124,11 @@ fn main() -> std::io::Result<()> {
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
             let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;
 
-            // Read the input file to a buffer
+            // Read the input file path
             let input_path = sub_matches.value_of_os("input_file").unwrap();
-            let f = File::open(input_path)?;
-
             let output_keys = sub_matches.value_of_os("output_keys").unwrap();
             let output_file = sub_matches.value_of_os("output_file").unwrap();
-            pre_threaded::encrypt_threaded(&f, file_secret, &output_keys, &output_file)?;
+            pre_threaded::encrypt_threaded(input_path, file_secret, &output_keys, &output_file)?;
             Ok(())
         }
         Some(("recrypt", sub_matches)) => {
@@ -180,9 +178,8 @@ fn main() -> std::io::Result<()> {
             Ok(())
         }
         Some(("decrypt", sub_matches)) => {
-            // Read the encrypted input file to a buffer
+            // Read the encrypted input file path
             let input_path = sub_matches.value_of_os("input_file").unwrap();
-            let f = File::open(input_path)?;
             
             // Read decryption keys file
             let decryption_keys_path = sub_matches.value_of_os("decryption_keys").unwrap();
@@ -195,7 +192,7 @@ fn main() -> std::io::Result<()> {
             
             // Decrypt the cipher
             let output_path = sub_matches.value_of_os("output").unwrap();
-            decrypt_threaded(&f, output_path, receiver_secret, &mut decryption_keys)?;
+            decrypt_threaded(input_path, output_path, receiver_secret, &mut decryption_keys)?;
             Ok(())
         }
         Some(("keygen", sub_matches)) => {
