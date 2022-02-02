@@ -7,7 +7,3 @@ edition = "2018"
 [dependencies]
 http = "0.1"
 vercel_lambda = "*"
-
-[lib]
-name = "util"
-path = "_util.rs"
