@@ -26,7 +26,7 @@ fn main() -> std::io::Result<()> {
         .about("Cli for pre-network")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(
-            App::new("precrypt")
+            App::new("encrypt")
                 .about("Encrypts file with proxy based re-encryption")
                 .args([
                     Arg::new("input_file")
@@ -122,7 +122,7 @@ fn main() -> std::io::Result<()> {
         .get_matches();
 
     match matches.subcommand() {
-        Some(("precrypt", sub_matches)) => {
+        Some(("encrypt", sub_matches)) => {
             // Read the keypair file
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
             let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;

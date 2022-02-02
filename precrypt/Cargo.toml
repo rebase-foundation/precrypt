@@ -1,7 +1,12 @@
 [package]
 name = "precrypt"
 version = "0.1.0"
+authors = ["Jacob Peddicord <jacob.peddicord@hey.com>"]
+license = "GPL-3.0-only"
 edition = "2021"
+repository = "https://github.com/rebase-foundation/openprecrypt/tree/main/precrypt"
+readme = "README.md"
+categories = ["cryptography", "cli"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
