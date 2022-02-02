@@ -31,8 +31,7 @@ pub fn encrypt_threaded(
    f: &File,
    file_key: SecretKey,
    output_keys: &OsStr,
-   output_file: &OsStr,
-   max_mem_bytes: usize
+   output_file: &OsStr
 ) -> std::io::Result<()> {
    let file_size = f.metadata().unwrap().len();
    println!("File size: {}", file_size);
