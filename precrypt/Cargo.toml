@@ -7,7 +7,7 @@ license = "GPL-3.0-only"
 edition = "2021"
 repository = "https://github.com/rebase-foundation/openprecrypt/tree/main/precrypt"
 readme = "README.md"
-categories = ["cryptography", "cli"]
+categories = ["cryptography", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
