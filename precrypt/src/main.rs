@@ -1,30 +1,42 @@
+use crate::pre_threaded::decrypt_threaded;
 use clap::Arg;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
-use std::fs;
 use std::fs::File;
 use std::io::BufReader;
 
 use clap::{App, AppSettings};
 use umbral_pre::*;
 
-#[derive(Serialize, Deserialize)]
+mod pre_threaded;
+
+#[derive(Serialize, Deserialize, Clone)]
 struct Keypair {
     public_key: PublicKey,
     secret_key: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct RecryptionKeys {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RecryptionKeys {
     owner_secret: Vec<u8>,
-    capsule: Capsule,
+    capsules: Vec<Capsule>,
+    chunk_size: usize,
 }
 
-#[derive(Serialize, Deserialize)]
-struct DecryptionKeys {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct DecryptionKeys {
     owner_pubkey: PublicKey,
-    capsule: Capsule,
-    translated_key: Vec<u8>,
+    capsules: Vec<Capsule>,
+    translated_keys: Vec<Vec<u8>>,
+    chunk_size: usize,
+}
+
+impl DecryptionKeys {
+    fn next_keys(&mut self) -> std::io::Result<(Capsule, Vec<u8>)> {
+        let capsule: Capsule = self.capsules.remove(0);
+        let translated_key: Vec<u8> = self.translated_keys.remove(0);
+        return Ok((capsule, translated_key.clone()))
+    }
 }
 
 fn parse_keypair_file(path: &OsStr) -> std::io::Result<SecretKey> {
@@ -66,7 +78,7 @@ fn main() -> std::io::Result<()> {
                         .help("Path of the recryption keys json file")
                         .required(true),
                     Arg::new("receiver_pubkey")
-                        .help("Path of the keypair to encrypt the file with")
+                        .help("Public key of the receiver of the file")
                         .required(true),
                     Arg::new("output")
                         .allow_invalid_utf8(true)
@@ -78,9 +90,9 @@ fn main() -> std::io::Result<()> {
             App::new("decrypt")
                 .about("Decrypts the input file using decryption and receiver keys")
                 .args([
-                    Arg::new("input")
+                    Arg::new("input_file")
                         .allow_invalid_utf8(true)
-                        .help("Path of the file to be encrypted")
+                        .help("Path of the file to be decrypted")
                         .required(true),
                     Arg::new("decryption_keys")
                         .allow_invalid_utf8(true)
@@ -88,11 +100,11 @@ fn main() -> std::io::Result<()> {
                         .required(true),
                     Arg::new("receiver_keypair")
                         .allow_invalid_utf8(true)
-                        .help("Path of the keypair to encrypt the file with")
+                        .help("Path of the keypair to decrypt the file with")
                         .required(true),
                     Arg::new("output")
                         .allow_invalid_utf8(true)
-                        .help("Output path for the new encrypted file")
+                        .help("Output path for the decrypted file")
                         .required(true),
                 ]),
         )
@@ -108,30 +120,17 @@ fn main() -> std::io::Result<()> {
 
     match matches.subcommand() {
         Some(("encrypt", sub_matches)) => {
-            // Read the input file to a buffer
-            let input_path = sub_matches.value_of_os("input_file").unwrap();
-            let plaintext = fs::read(input_path)?;
             // Read the keypair file
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
             let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;
-            let file_pub = file_secret.public_key();
 
-            // Use that key to encrypt it
-            let (capsule, ciphertext) = encrypt(&file_pub, &plaintext).unwrap();
+            // Read the input file to a buffer
+            let input_path = sub_matches.value_of_os("input_file").unwrap();
+            let f = File::open(input_path)?;
 
-            // Write out recryption keys
-            let output_path = sub_matches.value_of_os("output_keys").unwrap();
-            let secret_box = file_secret.to_secret_array();
-            let secret_array = secret_box.as_secret().to_vec();
-            let recryption_keys = RecryptionKeys {
-                owner_secret: secret_array,
-                capsule: capsule
-            };
-            std::fs::write(output_path, serde_json::to_string(&recryption_keys).unwrap())?;
-            
-            // Write encrypted output
-            let output_path = sub_matches.value_of_os("output_file").unwrap();
-            std::fs::write(output_path, bincode::serialize(&ciphertext).unwrap())?;
+            let output_keys = sub_matches.value_of_os("output_keys").unwrap();
+            let output_file = sub_matches.value_of_os("output_file").unwrap();
+            pre_threaded::encrypt_threaded(&f, file_secret, &output_keys, &output_file)?;
             Ok(())
         }
         Some(("recrypt", sub_matches)) => {
@@ -139,7 +138,8 @@ fn main() -> std::io::Result<()> {
             let recryption_keys_path = sub_matches.value_of_os("recryption_keys").unwrap();
             let recryption_keys_array = std::fs::read(recryption_keys_path).unwrap();
             let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array)?;
-            let owner_secret: SecretKey = SecretKey::from_bytes(recryption_keys.owner_secret).unwrap();
+            let owner_secret: SecretKey =
+                SecretKey::from_bytes(recryption_keys.owner_secret).unwrap();
 
             // Read receiver pubkey from argunment
             let receiver_public_str = sub_matches.value_of("receiver_pubkey").unwrap();
@@ -158,44 +158,44 @@ fn main() -> std::io::Result<()> {
             )[0]
             .clone();
 
-            let translated_key = reencrypt(&recryption_keys.capsule, translation_key);
+            let mut translated_keys: Vec<Vec<u8>> = Vec::new();
+            let capsules = recryption_keys.capsules.clone();
+            for capsule in recryption_keys.capsules {
+                let translated_key = reencrypt(&capsule, translation_key.clone());
+                translated_keys.push(translated_key.to_array().to_vec());
+            }
+
             let decryption_keys = DecryptionKeys {
                 owner_pubkey: owner_secret.public_key(),
-                capsule: recryption_keys.capsule,
-                translated_key: translated_key.to_array().to_vec(),
+                capsules: capsules,
+                translated_keys: translated_keys,
+                chunk_size: recryption_keys.chunk_size,
             };
             let output_path = sub_matches.value_of_os("output").unwrap();
-            std::fs::write(output_path, serde_json::to_string(&decryption_keys).unwrap()).unwrap();
+            std::fs::write(
+                output_path,
+                serde_json::to_string(&decryption_keys).unwrap(),
+            )
+            .unwrap();
             Ok(())
         }
         Some(("decrypt", sub_matches)) => {
-            // Read cipher
-            let input_path = sub_matches.value_of_os("input").unwrap();
-            let reader = BufReader::new(File::open(input_path)?);
-            let cipher: Box<[u8]> = bincode::deserialize_from(reader).unwrap();
+            // Read the encrypted input file to a buffer
+            let input_path = sub_matches.value_of_os("input_file").unwrap();
+            let f = File::open(input_path)?;
             
-            // Read recrypt response
+            // Read decryption keys file
             let decryption_keys_path = sub_matches.value_of_os("decryption_keys").unwrap();
             let decryption_keys_array = std::fs::read(decryption_keys_path).unwrap();
-            let decryption_keys: DecryptionKeys = serde_json::from_slice(&decryption_keys_array)?;
-            let translated_key =
-                VerifiedCapsuleFrag::from_verified_bytes(decryption_keys.translated_key).unwrap();
+            let mut decryption_keys: DecryptionKeys = serde_json::from_slice(&decryption_keys_array)?;
 
             // Read receiver secret
             let keypair_path = sub_matches.value_of_os("receiver_keypair").unwrap();
             let receiver_secret: SecretKey = parse_keypair_file(&keypair_path)?;
-
+            
             // Decrypt the cipher
-            let plaintext = decrypt_reencrypted(
-                &receiver_secret,
-                &decryption_keys.owner_pubkey,
-                &decryption_keys.capsule,
-                [translated_key],
-                &cipher,
-            )
-            .unwrap();
             let output_path = sub_matches.value_of_os("output").unwrap();
-            std::fs::write(output_path, &plaintext)?;
+            decrypt_threaded(&f, output_path, receiver_secret, &mut decryption_keys)?;
             Ok(())
         }
         Some(("keygen", sub_matches)) => {
