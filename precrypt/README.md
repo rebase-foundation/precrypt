@@ -1,6 +1,6 @@
 # Precrypt: Rust CLI for proxy-based re-encryption.
 
-This is a CLI wrapper for the [umbral-pre](https://github.com/nucypher/rust-umbral/blob/master/umbral-pre/README.md) proxy-based re-encryption library. It adds parallel processing for encryption and decryption that makes it possible to handle large files. 
+This is a CLI wrapper for the [umbral-pre](https://github.com/nucypher/rust-umbral/blob/master/umbral-pre/README.md) proxy-based re-encryption library. It adds parallel processing for encryption and decryption making it possible to process large files. 
 
 ## Usage
 
@@ -12,7 +12,7 @@ Generate a keypair that will be used to encrypt the file. **Keep this key privat
 precrypt keygen key.json
 ```
 
-Encrypt your target file with you're keypair.
+Encrypt your target file with your keypair and generate a re-encryption key..
 
 ``` 
 precrypt encrypt secret.txt key.json recrypt.json out.txt
