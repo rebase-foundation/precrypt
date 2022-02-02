@@ -1,0 +1,13 @@
+[package]
+name = "index"
+version = "1.0.0"
+authors = [ "Your Name <your@site.com>" ]
+edition = "2018"
+
+[dependencies]
+http = "0.1"
+vercel_lambda = "*"
+
+[[bin]]
+name = "test"
+path = "/Users/jacob/Developer/openprecrypt/openprecrypt-node/api/test.rs"
