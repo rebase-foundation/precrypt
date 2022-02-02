@@ -1,12 +1,13 @@
 [package]
-name = "api"
-version = "0.1.0"
-edition = "2021"
+name = "index"
+version = "1.0.0"
+authors = ["Your Name <your@site.com>"]
+edition = "2018"
 
 [dependencies]
 http = "0.1"
 vercel_lambda = "*"
 
-[[bin]]
-name = "main"
-path = "/Users/jacob/Developer/RNGesus-Reborn/api/main.rs"
+[lib]
+name = "util"
+path = "_util.rs"
