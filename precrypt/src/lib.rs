@@ -44,20 +44,21 @@ impl DecryptionKeys {
    }
 }
 
-// WARN: These numbers must be evenly divisible
-const MAX_MEM_BYTES: usize = 50000000; // Max amount you want to hold in memory at once
-const THREADS: usize = 10; // Max number of threads you want to run
-                           // chunk_size = MAX_MEM_BYTES / THREADS
-
 pub fn precrypt(
    input_path: &OsStr,
    file_key: SecretKey,
    output_keys: &OsStr,
    output_file: &OsStr,
+   threads: usize,
+   memory_size: usize,
 ) -> std::io::Result<()> {
+   if memory_size % threads != 0 {
+      panic!("'memory_size' must be evenly divisible by 'threads'")
+   }
+
    let f = File::open(input_path)?;
    let file_size = f.metadata().unwrap().len();
-   let mut batches_remaining = (file_size as f64 / MAX_MEM_BYTES as f64).ceil() as u64;
+   let mut batches_remaining = (file_size as f64 / memory_size as f64).ceil() as u64;
    let mut capsules: Vec<Capsule> = Vec::new();
    // Remove ouput file file if it exists
    if std::path::Path::new(output_file).exists() {
@@ -78,7 +79,7 @@ pub fn precrypt(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let (batch_encrypted, batch_capsules) = precrypt_batch(&f, file_key.public_key())?;
+      let (batch_encrypted, batch_capsules) = precrypt_batch(&f, file_key.public_key(), threads, memory_size)?;
       capsules.extend(batch_capsules);
       // Append encrypted chunks to file
       out.write(&batch_encrypted)?;
@@ -93,7 +94,7 @@ pub fn precrypt(
    let recryption_keys = RecryptionKeys {
       owner_secret: secret_array,
       capsules: capsules,
-      chunk_size: (MAX_MEM_BYTES / THREADS) + 40,
+      chunk_size: (memory_size / threads) + 40,
    };
    std::fs::write(
       output_keys,
@@ -102,11 +103,12 @@ pub fn precrypt(
    return Ok(());
 }
 
-fn precrypt_batch(f: &File, pubkey: PublicKey) -> std::io::Result<(Vec<u8>, Vec<Capsule>)> {
+fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
+   memory_size: usize) -> std::io::Result<(Vec<u8>, Vec<Capsule>)> {
    let (tx, rx) = mpsc::channel();
-   for x in 0..THREADS {
+   for x in 0..threads {
       let mut buffer = Vec::new();
-      f.take((MAX_MEM_BYTES / THREADS) as u64)
+      f.take((memory_size / threads) as u64)
          .read_to_end(&mut buffer)?;
       if buffer.len() == 0 {
          break;
@@ -188,9 +190,10 @@ pub fn decrypt(
    output_file: &OsStr,
    receiver_key: SecretKey,
    decryption_keys: &mut DecryptionKeys,
+   threads: usize,
 ) -> std::io::Result<()> {
    let mut batches_remaining =
-      (decryption_keys.capsules.len() as f64 / THREADS as f64).ceil() as u64;
+      (decryption_keys.capsules.len() as f64 / threads as f64).ceil() as u64;
    println!("Batches needed: {}", batches_remaining);
    // Read input file
    let f = File::open(input_path)?;
@@ -213,7 +216,7 @@ pub fn decrypt(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let batch_decrypted = decrypt_batch(&f, &receiver_key, decryption_keys)?;
+      let batch_decrypted = decrypt_batch(&f, &receiver_key, decryption_keys, threads)?;
       // Append encrypted chunks to file
       out.write(&batch_decrypted)?;
       batches_remaining -= 1;
@@ -227,9 +230,10 @@ fn decrypt_batch(
    f: &File,
    receiver_key: &SecretKey,
    decryption_keys: &mut DecryptionKeys,
+   threads: usize
 ) -> std::io::Result<Vec<u8>> {
    let (tx, rx) = mpsc::channel();
-   for x in 0..THREADS {
+   for x in 0..threads {
       let mut buffer = Vec::new();
       f.take(decryption_keys.chunk_size as u64)
          .read_to_end(&mut buffer)?;

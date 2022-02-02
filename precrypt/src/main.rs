@@ -30,8 +30,9 @@ fn main() -> std::io::Result<()> {
                 .about("Encrypts file with proxy based re-encryption")
                 .args([
                     Arg::new("input_file")
-                        .allow_invalid_utf8(true)
                         .help("Path of the file to be encrypted")
+                        .allow_invalid_utf8(true)
+                        .takes_value(true)
                         .required(true),
                     Arg::new("owner_keypair")
                         .allow_invalid_utf8(true)
@@ -45,6 +46,22 @@ fn main() -> std::io::Result<()> {
                         .allow_invalid_utf8(true)
                         .help("Output path for the new encrypted file")
                         .required(true),
+                    Arg::new("threads")
+                        .short('t')
+                        .long("threads")
+                        .validator(|s| s.parse::<usize>())
+                        .default_value("10")
+                        .help("Number of threads to use for parallel encryption")
+                        .required(false)
+                        .takes_value(true),
+                    Arg::new("memory_size")
+                        .short('m')
+                        .long("memory_size")
+                        .validator(|s| s.parse::<usize>())
+                        .default_value("50000000")
+                        .help("Maximum number of bytes to be stored in memory at once")
+                        .required(false)
+                        .takes_value(true),
                 ]),
         )
         .subcommand(
@@ -84,6 +101,14 @@ fn main() -> std::io::Result<()> {
                         .allow_invalid_utf8(true)
                         .help("Output path for the decrypted file")
                         .required(true),
+                    Arg::new("threads")
+                        .short('t')
+                        .long("threads")
+                        .validator(|s| s.parse::<usize>())
+                        .default_value("10")
+                        .help("Number of threads to use for parallel encryption")
+                        .required(false)
+                        .takes_value(true)
                 ]),
         )
         .subcommand(
@@ -106,7 +131,18 @@ fn main() -> std::io::Result<()> {
             let input_path = sub_matches.value_of_os("input_file").unwrap();
             let output_keys = sub_matches.value_of_os("output_keys").unwrap();
             let output_file = sub_matches.value_of_os("output_file").unwrap();
-            lib::precrypt(input_path, file_secret, &output_keys, &output_file)?;
+
+            let threads: usize = sub_matches.value_of_t("threads").unwrap();
+            let memory_size: usize = sub_matches.value_of_t("memory_size").unwrap();
+
+            lib::precrypt(
+                input_path,
+                file_secret,
+                &output_keys,
+                &output_file,
+                threads,
+                memory_size,
+            )?;
             Ok(())
         }
         Some(("recrypt", sub_matches)) => {
@@ -138,11 +174,15 @@ fn main() -> std::io::Result<()> {
             let receiver_secret: SecretKey = parse_keypair_file(&keypair_path)?;
             // Decrypt the cipher
             let output_path = sub_matches.value_of_os("output").unwrap();
+
+            let threads: usize = sub_matches.value_of_t("threads").unwrap();
+
             decrypt(
                 input_path,
                 output_path,
                 receiver_secret,
                 &mut decryption_keys,
+                threads
             )?;
             Ok(())
         }
