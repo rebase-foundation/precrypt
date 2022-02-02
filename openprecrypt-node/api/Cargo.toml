@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 http = "0.1"
-now_lambda = "*"
+vercel_lambda = "*"
 
 [[bin]]
 name = "main"

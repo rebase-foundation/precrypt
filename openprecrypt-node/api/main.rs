@@ -1,5 +1,5 @@
 use http::StatusCode;
-use now_lambda::{error::NowError, lambda, IntoResponse, Request, Response};
+use vercel_lambda::{lambda, error::VercelError, IntoResponse, Request, Response};
 
 fn get_response(req: Request) -> Result<serde_json::Value, &'static str> {
     return json!({
