@@ -14,7 +14,7 @@ export default function Upload() {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to <a>Precrypt</a>
+          <a>Upload</a> your keys
         </h1>
 
         <WalletMultiButton />
