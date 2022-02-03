@@ -45,13 +45,13 @@ export default async function handler(
         }
         
         //  Encrypt the data before storing on IFPS
-        const key = process.env.NACL_SECRET;
+        const key = process.env.NACL_SECRET!;
         const cipher = encrypt(data, key);
 
         // Store on IFPS with web3.storage
         const metadataBlob = Buffer.from(cipher);
         const web3_file = new File([metadataBlob], "data");
-        const web3Client = new Web3Storage({ token: process.env.WEB_3_STORAGE_TOKEN });
+        const web3Client = new Web3Storage({ token: process.env.WEB_3_STORAGE_TOKEN! });
         const cid = await web3Client.put([web3_file], { wrapWithDirectory: false })
         return res.end(JSON.stringify({"cid": cid}));
       default:

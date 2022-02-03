@@ -31,17 +31,19 @@ export default async function handler(
          case 'GET':
             // Get the data from IPFS
             const cid = req.query['cid'] as string;
-            const web3Client = new Web3Storage({ token: process.env.WEB_3_STORAGE_TOKEN });
+            if (!cid) {res.status(400).end("CID not found in request")}
+
+            const web3Client = new Web3Storage({ token: process.env.WEB_3_STORAGE_TOKEN! });
             const web3_res = await web3Client.get(cid);
-            if (!web3_res.ok) {
+            if (!web3_res || !web3_res.ok) {
                throw new Error(`failed to get ${cid}`)
             }
             const blobs = await web3_res.files(); // We don't use directory wrapping so there should only be 1 file
             const blob = blobs.pop();
-            const cipher = await blob.text();
+            const cipher = await blob!.text();
             
             // Decrypt data with sever private key
-            const key = process.env.NACL_SECRET;
+            const key = process.env.NACL_SECRET!;
             const json = decrypt(cipher, key);
 
             const mint = json['mint'];

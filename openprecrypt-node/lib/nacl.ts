@@ -8,9 +8,10 @@ import {
 
 const newNonce = () => randomBytes(secretbox.nonceLength);
 
+// Use this to generate a new secret for your server
 export const generateKey = () => encodeBase64(randomBytes(secretbox.keyLength));
 
-export const encrypt = (json, key) => {
+export const encrypt = (json: Object, key: string) => {
   const keyUint8Array = decodeBase64(key);
 
   const nonce = newNonce();
@@ -25,7 +26,7 @@ export const encrypt = (json, key) => {
   return base64FullMessage;
 };
 
-export const decrypt = (messageWithNonce, key) => {
+export const decrypt = (messageWithNonce: string, key: string) => {
   const keyUint8Array = decodeBase64(key);
   const messageWithNonceAsUint8Array = decodeBase64(messageWithNonce);
   const nonce = messageWithNonceAsUint8Array.slice(0, secretbox.nonceLength);
