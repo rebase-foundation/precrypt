@@ -20,15 +20,19 @@ export default function Home() {
         <div className={styles.grid}>
           <a className={styles.card}>
             <Link href="/upload" >
-              <h2>Upload &rarr;</h2>
-              <p>Store your recryption keys on this node so that your token holders can access your encrypted files.</p>
+              <div>
+                <h2>Upload &rarr;</h2>
+                <p>Store your recryption keys on this node so that your token holders can access your encrypted files.</p>
+              </div>
             </Link>
           </a>
 
           <a className={styles.card}>
             <Link href="/download" >
-              <h2>Download &rarr;</h2>
-              <p>Retrieve decryption keys by verifying that you own the token associated with the requested file.</p>
+              <div>
+                <h2>Download &rarr;</h2>
+                <p>Retrieve decryption keys by verifying that you own the token associated with the requested file.</p>
+              </div>
             </Link>
           </a>
         </div>
