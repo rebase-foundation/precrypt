@@ -4,6 +4,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { Web3Storage, File } from 'web3.storage';
 import initMiddleware from '../../lib/initMiddleware';
 import Cors from 'cors';
+import { encrypt } from '../../lib/nacl';
 
 // Initialize the cors middleware
 const cors = initMiddleware(
@@ -38,15 +39,17 @@ export default async function handler(
 
         
         
-        let data = {
+        const data = {
           "mint": mint,
           "recrypt_key": recrypt_key
         }
         
-        // TODO: Encrypt this data before storing on IFPS
+        //  Encrypt the data before storing on IFPS
+        const key = process.env.NACL_SECRET;
+        const cipher = encrypt(data, key);
 
         // Store on IFPS with web3.storage
-        const metadataBlob = Buffer.from(JSON.stringify(data));
+        const metadataBlob = Buffer.from(cipher);
         const web3_file = new File([metadataBlob], "data");
         const web3Client = new Web3Storage({ token: process.env.WEB_3_STORAGE_TOKEN });
         const cid = await web3Client.put([web3_file], { wrapWithDirectory: false })

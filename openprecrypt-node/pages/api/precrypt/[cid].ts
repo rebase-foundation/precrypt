@@ -4,6 +4,7 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { Web3Storage, File } from 'web3.storage';
 import initMiddleware from '../../../lib/initMiddleware';
 import Cors from 'cors';
+import { decrypt } from '../../../lib/nacl';
 
 // Initialize the cors middleware
 const cors = initMiddleware(
@@ -37,11 +38,12 @@ export default async function handler(
             }
             const blobs = await web3_res.files(); // We don't use directory wrapping so there should only be 1 file
             const blob = blobs.pop();
+            const cipher = await blob.text();
             
-            // TODO: Decrypt data with sever private key
-            
-            const text = await blob.text();
-            const json = JSON.parse(text);
+            // Decrypt data with sever private key
+            const key = process.env.NACL_SECRET;
+            const json = decrypt(cipher, key);
+
             const mint = json['mint'];
             const recrypt_key = json['recrypt_key'];
 
