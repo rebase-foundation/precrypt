@@ -199,6 +199,8 @@ fn main() -> std::io::Result<()> {
                 secret_key: secret_array.to_owned(),
             };
             std::fs::write(output_path, serde_json::to_string(&keypair).unwrap()).unwrap();
+
+            // serde_json::from_str(s: &'a str)
             Ok(())
         }
         _ => unreachable!(),
