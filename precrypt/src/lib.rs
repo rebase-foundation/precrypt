@@ -1,6 +1,7 @@
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use serde::{Deserialize, Serialize};
+use generic_array::GenericArray;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -12,7 +13,7 @@ use umbral_pre::*;
 
 struct EnChunkMessage {
    bytes: Vec<u8>,
-   capsule: Capsule,
+   capsule: Vec<u8>,
    index: usize,
 }
 
@@ -24,21 +25,21 @@ struct DeChunkMessage {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RecryptionKeys {
    owner_secret: Vec<u8>,
-   capsules: Vec<Capsule>,
+   capsules: Vec<Vec<u8>>,
    chunk_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DecryptionKeys {
-   owner_pubkey: PublicKey,
-   capsules: Vec<Capsule>,
+   owner_pubkey: Vec<u8>,
+   capsules: Vec<Vec<u8>>,
    translated_keys: Vec<Vec<u8>>,
    chunk_size: usize,
 }
 
 impl DecryptionKeys {
-   fn next_keys(&mut self) -> std::io::Result<(Capsule, Vec<u8>)> {
-      let capsule: Capsule = self.capsules.remove(0);
+   fn next_keys(&mut self) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
+      let capsule: Vec<u8> = self.capsules.remove(0);
       let translated_key: Vec<u8> = self.translated_keys.remove(0);
       return Ok((capsule, translated_key.clone()));
    }
@@ -59,7 +60,7 @@ pub fn precrypt(
    let f = File::open(input_path)?;
    let file_size = f.metadata().unwrap().len();
    let mut batches_remaining = (file_size as f64 / memory_size as f64).ceil() as u64;
-   let mut capsules: Vec<Capsule> = Vec::new();
+   let mut capsules: Vec<Vec<u8>> = Vec::new();
    // Remove output file file if it exists
    if std::path::Path::new(output_file).exists() {
       std::fs::remove_file(output_file)?;
@@ -104,7 +105,7 @@ pub fn precrypt(
 }
 
 fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
-   memory_size: usize) -> std::io::Result<(Vec<u8>, Vec<Capsule>)> {
+   memory_size: usize) -> std::io::Result<(Vec<u8>, Vec<Vec<u8>>)> {
    let (tx, rx) = mpsc::channel();
    for x in 0..threads {
       let mut buffer = Vec::new();
@@ -119,7 +120,7 @@ fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
          let message = EnChunkMessage {
             bytes: cipher_chunk.to_vec(),
             index: x,
-            capsule: capsule,
+            capsule: capsule.to_array().to_vec(),
          };
          txc.send(message).unwrap();
       });
@@ -137,7 +138,7 @@ fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
    messages.sort_by(|a, b| a.index.cmp(&b.index));
    // Combine messages into a batch
    let mut batch: Vec<u8> = Vec::new();
-   let mut capsules: Vec<Capsule> = Vec::new();
+   let mut capsules: Vec<Vec<u8>> = Vec::new();
    for m in messages {
       batch.extend(m.bytes);
       capsules.push(m.capsule);
@@ -165,13 +166,14 @@ pub fn recrypt(
 
    let mut translated_keys: Vec<Vec<u8>> = Vec::new();
    let capsules = recryption_keys.capsules.clone();
-   for capsule in recryption_keys.capsules {
+   for capsule_vec in recryption_keys.capsules {
+      let capsule = Capsule::from_array(&GenericArray::from_iter(capsule_vec)).unwrap();
       let translated_key = reencrypt(&capsule, translation_key.clone());
       translated_keys.push(translated_key.to_array().to_vec());
    }
 
    let decryption_keys = DecryptionKeys {
-      owner_pubkey: owner_secret.public_key(),
+      owner_pubkey: owner_secret.public_key().to_array().to_vec(),
       capsules: capsules,
       translated_keys: translated_keys,
       chunk_size: recryption_keys.chunk_size,
@@ -243,10 +245,12 @@ fn decrypt_batch(
 
       // Make clones of variables the thread will use
       let txc = tx.clone();
-      let (capsule, translated_key_vec) = decryption_keys.next_keys()?;
+      let (capsule_vec, translated_key_vec) = decryption_keys.next_keys()?;
       let translated_key = VerifiedCapsuleFrag::from_verified_bytes(translated_key_vec).unwrap();
       let receiver_key = receiver_key.clone();
-      let owner_pubkey = decryption_keys.owner_pubkey.clone();
+      let owner_pubkey_vec = decryption_keys.owner_pubkey.clone();
+      let owner_pubkey = PublicKey::from_array(&GenericArray::from_iter(owner_pubkey_vec)).unwrap();
+      let capsule = Capsule::from_array(&GenericArray::from_iter(capsule_vec)).unwrap();
       thread::spawn(move || {
          // Decrypt the cipher
          let plaintext = decrypt_reencrypted(

@@ -1,7 +1,15 @@
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::io::BufReader;
 use std::process::Command;
+
+#[derive(Serialize, Deserialize, Clone)]
+struct Keypair {
+    public_key: Vec<u8>,
+    secret_key: Vec<u8>,
+}
+
 
 #[test]
 fn test_integration() {
@@ -22,10 +30,10 @@ fn test_integration() {
    fs::write("tests/secret.txt", test_data).unwrap();
 
    // Precrypt
-   // Run precryption command
+   // Run encryption command
    let output = Command::new("./target/debug/precrypt")
       .args([
-         "precrypt",
+         "encrypt",
          "tests/secret.txt",
          "tests/seller.json",
          "tests/recrypt.json",
@@ -55,14 +63,14 @@ fn test_integration() {
       String::from_utf8_lossy(&output.stderr)
    );
    let file = fs::File::open("tests/buyer.json").unwrap();
-   let buyer_json: Value = serde_json::from_reader(BufReader::new(file)).unwrap();
-   let buyer_pubkey = buyer_json["public_key"].as_str().unwrap();
+   let buyer_json: Keypair = serde_json::from_reader(BufReader::new(file)).unwrap();
+   let buyer_pubkey_str = format!("{:?}", buyer_json.public_key);
    // Run recryption command
    let output = Command::new("./target/debug/precrypt")
       .args([
          "recrypt",
          "tests/recrypt.json",
-         buyer_pubkey,
+         &buyer_pubkey_str,
          "tests/decrypt.json",
       ])
       .output()
@@ -126,7 +134,7 @@ fn test_integration_threaded() {
    // Run precryption command
    let output = Command::new("./target/debug/precrypt")
       .args([
-         "precrypt",
+         "encrypt",
          "tests/t_secret.txt",
          "tests/t_seller.json",
          "tests/t_recrypt.json",
@@ -160,14 +168,14 @@ fn test_integration_threaded() {
       String::from_utf8_lossy(&output.stderr)
    );
    let file = fs::File::open("tests/t_buyer.json").unwrap();
-   let buyer_json: Value = serde_json::from_reader(BufReader::new(file)).unwrap();
-   let buyer_pubkey = buyer_json["public_key"].as_str().unwrap();
+   let buyer_json: Keypair = serde_json::from_reader(BufReader::new(file)).unwrap();
+   let buyer_pubkey_str = format!("{:?}", buyer_json.public_key);
    // Run recryption command
    let output = Command::new("./target/debug/precrypt")
       .args([
          "recrypt",
          "tests/t_recrypt.json",
-         buyer_pubkey,
+         &buyer_pubkey_str,
          "tests/t_decrypt.json",
       ])
       .output()

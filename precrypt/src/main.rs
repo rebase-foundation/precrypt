@@ -1,3 +1,4 @@
+use generic_array::GenericArray;
 use clap::Arg;
 use clap::{App, AppSettings};
 use serde::{Deserialize, Serialize};
@@ -11,7 +12,7 @@ pub use crate::lib::*;
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Keypair {
-    public_key: PublicKey,
+    public_key: Vec<u8>,
     secret_key: Vec<u8>,
 }
 
@@ -73,7 +74,7 @@ fn main() -> std::io::Result<()> {
                         .help("Path of the recryption keys json file")
                         .required(true),
                     Arg::new("receiver_pubkey")
-                        .help("Public key of the receiver of the file")
+                        .help("Public key byte array of the receiver of the file")
                         .required(true),
                     Arg::new("output")
                         .allow_invalid_utf8(true)
@@ -153,8 +154,8 @@ fn main() -> std::io::Result<()> {
 
             // Read receiver pubkey from argument
             let receiver_public_str = sub_matches.value_of("receiver_pubkey").unwrap();
-            let receiver_public_json = format!("\"{}\"", receiver_public_str); // Turns raw string into json string
-            let receiver_public: PublicKey = serde_json::from_str(&receiver_public_json)?;
+            let public_vec: Vec<u8> = serde_json::from_str(receiver_public_str)?;
+            let receiver_public: PublicKey = PublicKey::from_array(&GenericArray::from_iter(public_vec)).unwrap();
 
             let output_path = sub_matches.value_of_os("output").unwrap();
             recrypt(recryption_keys, receiver_public, output_path)?;
@@ -195,7 +196,7 @@ fn main() -> std::io::Result<()> {
             let secret_array = secret_box.as_secret().to_vec();
 
             let keypair = Keypair {
-                public_key: keypair.public_key(),
+                public_key: keypair.public_key().to_array().to_vec(),
                 secret_key: secret_array.to_owned(),
             };
             std::fs::write(output_path, serde_json::to_string(&keypair).unwrap()).unwrap();
