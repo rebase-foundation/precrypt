@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import Image from 'next/image';
 import styles from '../styles/Home.module.css';
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -17,12 +18,12 @@ export default function Home() {
         </h1>
 
         <div className={styles.grid}>
-          <a href="/upload" className={styles.card}>
+          <Link href="/upload" className={styles.card}>
             <h2>Upload &rarr;</h2>
             <p>Store your recryption keys on this node so that your token holders can access your encrypted files.</p>
           </a>
 
-          <a href="/download" className={styles.card}>
+          <Link href="/download" className={styles.card}>
             <h2>Download &rarr;</h2>
             <p>Retrieve decryption keys by verifying that you own the token associated with the requested file.</p>
           </a>
