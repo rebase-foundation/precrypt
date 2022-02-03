@@ -1,9 +1,24 @@
+import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Head from 'next/head';
-import Image from 'next/image';
+import { useState } from 'react';
 import styles from '../styles/Home.module.css';
 
 export default function Upload() {
+  const [mint, setMint] = useState('');
+  const [recrypt_key, setRecryptionKey] = useState('');
+  const { publicKey, sendTransaction, connected, connecting } = useWallet();
+
+  async function onSave() {
+    if (!mint || !recrypt_key || !publicKey) return;
+    const response = await fetch('/api/precrypt/?mint=' + mint, {
+      method: 'POST',
+      body: recrypt_key
+    });
+    const json = await response.json();
+    console.log(json["cid"]);
+  }
+
   return (
     <div className={styles.container}>
       <Head>
@@ -18,6 +33,38 @@ export default function Upload() {
         </h1>
 
         <WalletMultiButton />
+
+        <label>
+          Mint: 
+          <input
+            type={'text'}
+            onChange={(e) => setMint(e.target.value)}
+            value={mint}
+          />
+        </label>
+
+        <label> 
+          Recryption key: 
+          <input
+            type="file"
+            onChange={async (e: any) => {
+              const file = e.target.files[0];
+              if (!file) { return; }
+              try {
+                let text = await file.text();
+                setRecryptionKey(text);
+              } catch (error) {
+                console.log('Error parsing file: ', error);
+              }
+            }}
+          />
+        </label>
+        <button
+          disabled={!mint || !recrypt_key || !publicKey}
+          onClick={onSave}
+        >
+          Submit
+        </button>
       </main>
     </div>
   );
