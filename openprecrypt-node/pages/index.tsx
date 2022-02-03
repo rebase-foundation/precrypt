@@ -22,7 +22,7 @@ export default function Home() {
             <p>Store your recryption keys on this node so that your token holders can access your encrypted files.</p>
           </a>
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
+          <a href="/download" className={styles.card}>
             <h2>Download &rarr;</h2>
             <p>Retrieve decryption keys by verifying that you own the token associated with the requested file.</p>
           </a>
