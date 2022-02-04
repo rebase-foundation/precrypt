@@ -38,7 +38,7 @@ export default function Download() {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          <a>Upload</a> your keys
+          <a>Download</a> your keys
         </h1>
 
         <WalletMultiButton />

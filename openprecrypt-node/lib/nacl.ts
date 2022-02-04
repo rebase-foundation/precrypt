@@ -42,5 +42,6 @@ export const decrypt = (messageWithNonce: string, key: string) => {
   }
 
   const base64DecryptedMessage = encodeUTF8(decrypted);
-  return JSON.parse(base64DecryptedMessage);
+  const json = JSON.parse(base64DecryptedMessage);
+  return json;
 };

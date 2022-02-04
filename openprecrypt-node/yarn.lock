@@ -4145,6 +4145,11 @@ uint8arrays@^3.0.0:
   dependencies:
     multiformats "^9.4.2"
 
+umbral-pre@^0.3.2:
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/umbral-pre/-/umbral-pre-0.3.3.tgz#00d4115d5d21f939bcb750762d7f251974f8fa52"
+  integrity sha512-i/6SlfGuLGJW6V8xyx8Eto6Ka7QEmg02o/vkOMUtJWFlR5P4Wbsg623LAbjHcrogc1erwAxKZQCeejyFdKh1lQ==
+
 unbox-primitive@^1.0.1:
   version "1.0.1"
   resolved "https://registry.npmjs.org/unbox-primitive/-/unbox-primitive-1.0.1.tgz"

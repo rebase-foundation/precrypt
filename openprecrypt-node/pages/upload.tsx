@@ -7,6 +7,7 @@ import styles from '../styles/Home.module.css';
 export default function Upload() {
   const [mint, setMint] = useState('');
   const [recrypt_key, setRecryptionKey] = useState('');
+  const [cid, setCid] = useState('');
   const { publicKey, sendTransaction, connected, connecting } = useWallet();
 
   async function onSave() {
@@ -17,6 +18,7 @@ export default function Upload() {
     });
     const json = await response.json();
     console.log(json["cid"]);
+    setCid(json["cid"]);
   }
 
   return (
@@ -65,6 +67,7 @@ export default function Upload() {
         >
           Submit
         </button>
+        {cid && <p>Your CID: {cid}</p>}
       </main>
     </div>
   );

@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "umbral-pre": "^0.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.14"
+  }
+}
