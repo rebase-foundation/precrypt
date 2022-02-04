@@ -2,7 +2,7 @@ This folder is for debugging an issue in serializing between rust and js. It sho
 
 Running rust in /rust folder:
 ```
-cargo install
+cargo install --path .
 cargo run
 ```
 
