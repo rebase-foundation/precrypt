@@ -1,3 +1,5 @@
+use std::env;
+
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 
 #[get("/")]
@@ -12,9 +14,14 @@ async fn echo(req_body: String) -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    println!("Starting server on http://localhost:8080");
+    let host = match env::var("SERVER_HOST") {
+        Ok(host) => host,
+        Err(_e) => "0.0.0.0:8000".to_string(),
+    };
+
+    println!("Starting server on {:?}", host);
     HttpServer::new(|| App::new().service(hello).service(echo))
-        .bind("127.0.0.1:8080")?
+        .bind(host)?
         .run()
         .await
 }
