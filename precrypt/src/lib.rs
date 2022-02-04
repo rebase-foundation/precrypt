@@ -149,8 +149,7 @@ fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
 pub fn recrypt(
    recryption_keys: RecryptionKeys,
    receiver_public: PublicKey,
-   output_path: &OsStr,
-) -> std::io::Result<()> {
+) -> std::io::Result<DecryptionKeys> {
    // Fragmentation/verification is not used because we aren't using proxies
    let owner_secret: SecretKey = SecretKey::from_bytes(recryption_keys.owner_secret).unwrap();
    let translation_key = generate_kfrags(
@@ -178,13 +177,7 @@ pub fn recrypt(
       translated_keys: translated_keys,
       chunk_size: recryption_keys.chunk_size,
    };
-
-   std::fs::write(
-      output_path,
-      serde_json::to_string(&decryption_keys).unwrap(),
-   )
-   .unwrap();
-   return Ok(());
+   return Ok(decryption_keys);
 }
 
 pub fn decrypt(

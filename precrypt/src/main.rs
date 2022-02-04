@@ -157,8 +157,14 @@ fn main() -> std::io::Result<()> {
             let public_vec: Vec<u8> = serde_json::from_str(receiver_public_str)?;
             let receiver_public: PublicKey = PublicKey::from_array(&GenericArray::from_iter(public_vec)).unwrap();
 
+            let decryption_keys = recrypt(recryption_keys, receiver_public)?;
+            
             let output_path = sub_matches.value_of_os("output").unwrap();
-            recrypt(recryption_keys, receiver_public, output_path)?;
+            std::fs::write(
+                output_path,
+                serde_json::to_string(&decryption_keys).unwrap(),
+             )
+            .unwrap();
             Ok(())
         }
         Some(("decrypt", sub_matches)) => {
