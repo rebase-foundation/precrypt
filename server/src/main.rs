@@ -7,12 +7,12 @@ use actix_cors::Cors;
 use actix_web::client::Client;
 use actix_web::{post, App, HttpResponse, HttpServer, Responder};
 use orion::aead;
+use nacl::sign::verify;
 use precrypt::RecryptionKeys;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use std::str;
 
-// TODO: CORS?
 
 #[derive(Serialize, Deserialize)]
 struct UploadRequest {
@@ -51,9 +51,9 @@ async fn upload(req_body: String) -> impl Responder {
 #[derive(Serialize, Deserialize)]
 struct RecryptRequest {
     cid: String,
-    requester_pubkey: Vec<u8>, // recrypt key
-                               // sol pubkey
-                               // sol signed message
+    precrypt_pubkey: Vec<u8>, // recrypt key
+    sol_pubkey: Vec<u8>, // sol pubkey
+    sol_signed_message: Vec<u8> // sol signed message
 }
 
 #[post("/download")]
@@ -81,15 +81,17 @@ async fn download(req_body: String) -> impl Responder {
     let recryption_keys = data.recryption_keys;
 
     // TODO: Verify that the getter holds the token
-    // Signed message
-    // Public key
-    // Verify (signed message, public key)
+    // Verify signature
+    let signed = verify(&request.sol_signed_message, "precrypt".as_bytes(), &request.sol_pubkey).unwrap();
+    if !signed {
+        return HttpResponse::Unauthorized().body("Signature verification failed");
+    }
     println!("{}", mint);
 
     // Generate the decryption keys
-    let requester_pubkey =
-        PublicKey::from_array(&GenericArray::from_iter(request.requester_pubkey)).unwrap();
-    let decryption_keys = precrypt::recrypt(recryption_keys, requester_pubkey).unwrap();
+    let precrypt_pubkey =
+        PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
+    let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
     return HttpResponse::Ok().body(serde_json::to_string(&decryption_keys).unwrap());
 }
 
