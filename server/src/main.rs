@@ -1,14 +1,15 @@
-use umbral_pre::*;
+use dotenv::dotenv;
 use generic_array::GenericArray;
 use std::env;
-use dotenv::dotenv;
+use umbral_pre::*;
 
-use actix_web::{post, App, HttpResponse, HttpServer, Responder};
+use actix_cors::Cors;
 use actix_web::client::Client;
+use actix_web::{post, App, HttpResponse, HttpServer, Responder};
+use orion::aead;
 use precrypt::RecryptionKeys;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
-use orion::aead;
 use std::str;
 
 // TODO: CORS?
@@ -50,7 +51,9 @@ async fn upload(req_body: String) -> impl Responder {
 #[derive(Serialize, Deserialize)]
 struct RecryptRequest {
     cid: String,
-    requester_pubkey: Vec<u8>
+    requester_pubkey: Vec<u8>, // recrypt key
+                               // sol pubkey
+                               // sol signed message
 }
 
 #[post("/download")]
@@ -67,7 +70,6 @@ async fn download(req_body: String) -> impl Responder {
     let response_body_bytes = response.unwrap().body().await.unwrap();
     let response_body_str: String = serde_json::from_slice(&response_body_bytes).unwrap();
     let response_body: Vec<u8> = serde_json::from_str(&response_body_str).unwrap();
-    
     // Decrypt the data with private key
     let secret_string = env::var("ORION_SECRET").unwrap();
     let secret_slice: Vec<u8> = serde_json::from_str(&secret_string).unwrap();
@@ -79,10 +81,14 @@ async fn download(req_body: String) -> impl Responder {
     let recryption_keys = data.recryption_keys;
 
     // TODO: Verify that the getter holds the token
+    // Signed message
+    // Public key
+    // Verify (signed message, public key)
     println!("{}", mint);
 
     // Generate the decryption keys
-    let requester_pubkey = PublicKey::from_array(&GenericArray::from_iter(request.requester_pubkey)).unwrap();
+    let requester_pubkey =
+        PublicKey::from_array(&GenericArray::from_iter(request.requester_pubkey)).unwrap();
     let decryption_keys = precrypt::recrypt(recryption_keys, requester_pubkey).unwrap();
     return HttpResponse::Ok().body(serde_json::to_string(&decryption_keys).unwrap());
 }
@@ -96,10 +102,16 @@ async fn main() -> std::io::Result<()> {
     };
 
     println!("Starting server on {:?}", host);
-    HttpServer::new(|| App::new()
-        .service(upload)
-        .service(download))
-        .bind(host)?
-        .run()
-        .await
+    HttpServer::new(|| {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_header()
+            .allowed_methods(vec!["POST"])
+            .max_age(3600);
+
+        App::new().wrap(cors).service(upload).service(download)
+    })
+    .bind(host)?
+    .run()
+    .await
 }
