@@ -22,10 +22,7 @@ struct UploadRequest {
 
 #[post("/upload")]
 async fn upload(req_body: String) -> impl Responder {
-    let request: UploadRequest = serde_json::from_str(&req_body).unwrap();
-
-    // TODO: Verify that poster owns listing
-    println!("{}", request.mint);
+    let _request: UploadRequest = serde_json::from_str(&req_body).unwrap();
 
     // Encrypt the data before storing on IPFS
     let secret_string = env::var("ORION_SECRET").unwrap();
@@ -90,7 +87,7 @@ async fn download(req_body: String) -> impl Responder {
     let mint = data.mint;
     let recryption_keys = data.recryption_keys;
 
-    // TODO: Verify that the getter holds the token
+    // Verify that the getter holds the token
     // Verify signature
     let signed = verify(
         &request.sol_signed_message,
