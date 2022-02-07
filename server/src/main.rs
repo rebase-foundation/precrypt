@@ -6,13 +6,13 @@ use umbral_pre::*;
 use actix_cors::Cors;
 use actix_web::client::Client;
 use actix_web::{post, App, HttpResponse, HttpServer, Responder};
-use orion::aead;
 use nacl::sign::verify;
+use orion::aead;
 use precrypt::RecryptionKeys;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use serde_json::value::Value;
 use std::str;
-
 
 #[derive(Serialize, Deserialize)]
 struct UploadRequest {
@@ -51,9 +51,19 @@ async fn upload(req_body: String) -> impl Responder {
 #[derive(Serialize, Deserialize)]
 struct RecryptRequest {
     cid: String,
-    precrypt_pubkey: Vec<u8>, // recrypt key
-    sol_pubkey: Vec<u8>, // sol pubkey
-    sol_signed_message: Vec<u8> // sol signed message
+    precrypt_pubkey: Vec<u8>,    // recrypt key
+    sol_pubkey: Vec<u8>,         // sol pubkey
+    sol_signed_message: Vec<u8>, // sol signed message
+}
+
+#[derive(Serialize, Deserialize)]
+struct SolanaJSONRPCResult {
+    result: SolanaJSONRPCResultValue
+}
+
+#[derive(Serialize, Deserialize)]
+struct SolanaJSONRPCResultValue {
+    value: Vec<Value> 
 }
 
 #[post("/download")]
@@ -82,11 +92,60 @@ async fn download(req_body: String) -> impl Responder {
 
     // TODO: Verify that the getter holds the token
     // Verify signature
-    let signed = verify(&request.sol_signed_message, "precrypt".as_bytes(), &request.sol_pubkey).unwrap();
+    let signed = verify(
+        &request.sol_signed_message,
+        "precrypt".as_bytes(),
+        &request.sol_pubkey,
+    )
+    .unwrap();
     if !signed {
         return HttpResponse::Unauthorized().body("Signature verification failed");
     }
-    println!("{}", mint);
+
+    // Encode pubkey bytes to string
+    let sol_pubkey = bs58::encode(request.sol_pubkey).into_string();
+
+    // Verify solana pubkey owns token from mint
+    let client = Client::default();
+    let response = client
+        .post("https://ssc-dao.genesysgo.net/")
+        .header("Content-Type", "application/json")
+        .send_body(json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "getTokenAccountsByOwner",
+            "params": [
+                sol_pubkey,
+                {
+                    "mint": mint
+                },
+                {
+                    "encoding": "jsonParsed"
+                }
+            ]
+        }))
+        .await;
+
+    let response_body_bytes = response.unwrap().body().await.unwrap();
+    let response_body: SolanaJSONRPCResult = serde_json::from_slice(&response_body_bytes).unwrap();
+    let values = response_body.result.value;
+    let mut owns_token = false;
+    for value in values {
+        let balance_str = value
+            .get("account").unwrap()
+            .get("data").unwrap()
+            .get("parsed").unwrap()
+            .get("info").unwrap()
+            .get("tokenAmount").unwrap()
+            .get("uiAmountString").unwrap();
+        let balance: f64 = balance_str.as_str().unwrap().parse::<f64>().unwrap();
+        if balance >= 1.0 {
+            owns_token = true;
+        }
+    }
+    if !owns_token {
+        return HttpResponse::Unauthorized().body("Solana account doesn't own required token");
+    }
 
     // Generate the decryption keys
     let precrypt_pubkey =
