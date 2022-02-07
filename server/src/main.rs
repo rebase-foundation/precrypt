@@ -2,10 +2,9 @@ use dotenv::dotenv;
 use generic_array::GenericArray;
 use std::env;
 use umbral_pre::*;
-
 use actix_cors::Cors;
 use actix_web::client::Client;
-use actix_web::{post, App, HttpResponse, HttpServer, Responder};
+use actix_web::{post, get, App, HttpResponse, HttpServer, Responder};
 use nacl::sign::verify;
 use orion::aead;
 use precrypt::RecryptionKeys;
@@ -13,6 +12,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_json::value::Value;
 use std::str;
+
+// Generates Orion keys to be used for IPFS storage
+#[get("/keygen")]
+async fn keygen() -> impl Responder {
+    let secret_key = orion::aead::SecretKey::default();
+    let secret_key_str = serde_json::to_string(&secret_key.unprotected_as_bytes()).unwrap();
+    return HttpResponse::Ok().body(&secret_key_str);
+}
 
 #[derive(Serialize, Deserialize)]
 struct UploadRequest {
@@ -145,8 +152,7 @@ async fn download(req_body: String) -> impl Responder {
     }
 
     // Generate the decryption keys
-    let precrypt_pubkey =
-        PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
+    let precrypt_pubkey = PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
     let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
     return HttpResponse::Ok().body(serde_json::to_string(&decryption_keys).unwrap());
 }
@@ -167,7 +173,7 @@ async fn main() -> std::io::Result<()> {
             .allowed_methods(vec!["POST"])
             .max_age(3600);
 
-        App::new().wrap(cors).service(upload).service(download)
+        App::new().wrap(cors).service(upload).service(download).service(keygen)
     })
     .bind(host)?
     .run()
