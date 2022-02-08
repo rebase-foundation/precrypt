@@ -1,8 +1,11 @@
-FROM rust:1.58.1
+FROM rust:1.58.1 as build
+ENV PKG_CONFIG_ALLOW_CROSS=1
 
 WORKDIR /usr/src/server
-COPY . .
+COPY server/. .
 
-RUN cargo build --release
+RUN cargo install --path .
 
-CMD ["./target/release/server"]
+FROM gcr.io/distroless/cc-debian10
+COPY --from=build /usr/local/cargo/bin/server /usr/local/bin/server
+CMD ["/usr/local/bin/server"]
