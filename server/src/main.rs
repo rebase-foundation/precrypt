@@ -14,12 +14,13 @@ mod precrypt_key;
 use crate::precrypt_key::*;
 
 mod precrypt_file;
+use crate::precrypt_file::*;
 
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
 
 #[post("/file/store")]
-async fn store_file(mut payload: Multipart) -> impl Responder {
+async fn file_store(mut payload: Multipart) -> impl Responder {
     let file_uuid: String = Uuid::new_v4().to_simple().to_string();
     fs::create_dir(&file_uuid).unwrap();
 
@@ -28,32 +29,49 @@ async fn store_file(mut payload: Multipart) -> impl Responder {
 
     // Write file to disk using multipart stream
     let mut file_count = 0;
+    let mut mint: String;
     while let Some(item) = payload.next().await {
         file_count += 1;
-        if file_count > 1 {
-            panic!("Only submit one file at a time.");
-        }
-        let mut field = item.unwrap();
-        println!(
-            "Uploading: {}",
-            field.content_disposition().unwrap().get_filename().unwrap()
-        );
+        match file_count {
+            1 => {
+                println!("mint");
+                let mut mint_field = item.unwrap();
+                let field_content = mint_field.content_disposition().unwrap();
+                let field_name = field_content.get_name().unwrap();
+                if field_name != "mint" { panic!("Invalid field: expected 'mint'")}
 
-        let mut out = fs::OpenOptions::new()
-            .write(true)
-            .append(true)
-            .create_new(true)
-            .open(raw_file_path)
-            .unwrap();
-
-        while let Some(chunk) = field.next().await {
-            out.write(&chunk.unwrap()).unwrap();
+                let mut bytes: Vec<u8> = Vec::new();
+                while let Some(chunk) = mint_field.next().await {
+                    bytes.append(&mut chunk.unwrap().to_vec());
+                }
+                mint = std::str::from_utf8(&bytes).unwrap().to_string();
+            },
+            2 => {
+                println!("file");
+                let mut field = item.unwrap();
+                println!(
+                    "Uploading: {}",
+                    field.content_disposition().unwrap().get_filename().unwrap()
+                );
+        
+                let mut out = fs::OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .create_new(true)
+                    .open(raw_file_path)
+                    .unwrap();
+        
+                while let Some(chunk) = field.next().await {
+                    out.write(&chunk.unwrap()).unwrap();
+                }
+            },
+            _ => panic!("Invalid form data")
         }
     }
 
     let file_uuid_c = file_uuid.clone();
-    thread::spawn(move || {
-        precrypt_file::store_file::store(file_uuid_c, THREADS, MEM_SIZE);
+    thread::spawn(move || async {
+        store_file::store(file_uuid_c, THREADS, MEM_SIZE);
     });
     return HttpResponse::Ok().body(file_uuid);
 }
@@ -106,7 +124,7 @@ async fn main() -> std::io::Result<()> {
             .service(key_store)
             .service(key_request)
             .service(keygen)
-            .service(store_file)
+            .service(file_store)
     })
     .bind(host)?
     .run()
