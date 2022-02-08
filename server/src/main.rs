@@ -1,18 +1,19 @@
 use actix_cors::Cors;
 use actix_multipart::Multipart;
+use futures_util::stream::StreamExt as _;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use futures_util::stream::StreamExt as _;
-use precrypt::{ precrypt };
 use std::env;
 use std::fs;
+use std::thread;
 use std::io::Write;
-use std::ffi::OsStr;
-use umbral_pre::*;
 use uuid::Uuid;
+use std::ffi::OsStr;
 
-mod precrypt_keys;
-use crate::precrypt_keys::*;
+mod precrypt_key;
+use crate::precrypt_key::*;
+
+mod precrypt_file;
 
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
@@ -30,10 +31,13 @@ async fn store_file(mut payload: Multipart) -> impl Responder {
     while let Some(item) = payload.next().await {
         file_count += 1;
         if file_count > 1 {
-            return HttpResponse::BadRequest().body("Only submit one file at a time.");
+            panic!("Only submit one file at a time.");
         }
         let mut field = item.unwrap();
-        println!("Uploading: {}", field.content_disposition().unwrap().get_filename().unwrap());
+        println!(
+            "Uploading: {}",
+            field.content_disposition().unwrap().get_filename().unwrap()
+        );
 
         let mut out = fs::OpenOptions::new()
             .write(true)
@@ -42,35 +46,16 @@ async fn store_file(mut payload: Multipart) -> impl Responder {
             .open(raw_file_path)
             .unwrap();
 
-        // Field in turn is stream of *Bytes* object
         while let Some(chunk) = field.next().await {
-            // std::fs::write(path: P, contents: C)
             out.write(&chunk.unwrap()).unwrap();
-            // println!("-- CHUNK: \n{:?}", std::str::from_utf8(&chunk.unwrap()));
         }
     }
 
-    // Encrypt file using precrypt
-    println!("Encrypting...");
-    let recrypt_key_string = format!("{}/recrypt.json", file_uuid);
-    let recrypt_key_path = OsStr::new(&recrypt_key_string);
-    let cipher_file_string = &format!("{}/cipher.bin", file_uuid);
-    let cipher_file_path = OsStr::new(&cipher_file_string);
-    let file_key = SecretKey::random();
-    precrypt(raw_file_path, file_key, &recrypt_key_path, cipher_file_path, THREADS, MEM_SIZE).unwrap();
-
-    // Upload encrypted file to IPFS
-    // TODO
-
-    // Cleanup created files
-    fs::remove_dir_all(&file_uuid).unwrap();
-
-    // Store Keys
-    
-
-    // Return CID?
-
-    return HttpResponse::Ok().body("OK");
+    let file_uuid_c = file_uuid.clone();
+    thread::spawn(move || {
+        precrypt_file::store_file::store(file_uuid_c, THREADS, MEM_SIZE);
+    });
+    return HttpResponse::Ok().body(file_uuid);
 }
 
 // Generates Orion keys to be used for IPFS storage
@@ -83,18 +68,20 @@ async fn keygen() -> impl Responder {
 
 #[post("/key/store")]
 async fn key_store(req_body: String) -> impl Responder {
-    let request: store::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
+    let request: store_key::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
     let orion_string = env::var("ORION_SECRET").unwrap();
     let web3_token = env::var("WEB3").unwrap();
-    let response = precrypt_keys::store::store(request, orion_string, web3_token).await.unwrap();
+    let response = store_key::store(request, orion_string, web3_token)
+        .await
+        .unwrap();
     return HttpResponse::Ok().body(response);
 }
 
 #[post("/key/request")]
 async fn key_request(req_body: String) -> impl Responder {
-    let request: request::RecryptRequest = serde_json::from_str(&req_body).unwrap();
+    let request: request_key::RecryptRequest = serde_json::from_str(&req_body).unwrap();
     let secret_string = env::var("ORION_SECRET").unwrap();
-    let response = request::request(request, secret_string).await.unwrap();
+    let response = request_key::request(request, secret_string).await.unwrap();
     return HttpResponse::Ok().body(response);
 }
 

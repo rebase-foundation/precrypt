@@ -8,7 +8,7 @@ use std::str;
 use umbral_pre::*;
 use generic_array::GenericArray;
 
-use crate::store::*;
+use crate::store_key::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct RecryptRequest {
