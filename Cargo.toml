@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
-    "precrypt",
-    "server"
+    # "precrypt",
+    "server",
+    "umbral_rust_to_js_test/rust"
 ]

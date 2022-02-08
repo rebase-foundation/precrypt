@@ -2,12 +2,12 @@
 # yarn lockfile v1
 
 
-"@types/node@^17.0.14":
-  version "17.0.14"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-17.0.14.tgz#33b9b94f789a8fedd30a68efdbca4dbb06b61f20"
-  integrity sha512-SbjLmERksKOGzWzPNuW7fJM7fk3YXVTFiZWB/Hs99gwhk+/dnrQRPBQjPW9aO+fi1tAffi9PrwFvsmOKmDTyng==
+"@nucypher/umbral-pre@^0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@nucypher/umbral-pre/-/umbral-pre-0.5.1.tgz#2b77bcd6939f787fcb9c8995a5215e640f67d052"
+  integrity sha512-fiIyuo7ClZLOr4aT0FPmrD2Ro8OOox0Qai+7USk44r9SG+shv0zri9lTbnfgzYR2Lkf9UC31EAnRuQBnpa8Zag==
 
-umbral-pre@^0.3.2:
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/umbral-pre/-/umbral-pre-0.3.3.tgz#00d4115d5d21f939bcb750762d7f251974f8fa52"
-  integrity sha512-i/6SlfGuLGJW6V8xyx8Eto6Ka7QEmg02o/vkOMUtJWFlR5P4Wbsg623LAbjHcrogc1erwAxKZQCeejyFdKh1lQ==
+"@types/node@^17.0.14":
+  version "17.0.16"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-17.0.16.tgz#e3733f46797b9df9e853ca9f719c8a6f7b84cd26"
+  integrity sha512-ydLaGVfQOQ6hI1xK2A5nVh8bl0OGoIfYMxPWHqqYe9bTkWCfqiVvZoh2I/QF2sNSkZzZyROBoTefIEI+PB6iIA==
