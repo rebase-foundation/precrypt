@@ -13,7 +13,7 @@ use crate::store_key::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct KeyRequest {
-   pub cid: String,
+   pub key_cid: String,
    pub precrypt_pubkey: Vec<u8>,    // recrypt key
    pub sol_pubkey: Vec<u8>,         // sol pubkey
    pub sol_signed_message: Vec<u8>, // sol signed message
@@ -29,19 +29,27 @@ struct SolanaJSONRPCResultValue {
    value: Vec<Value>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct KeyResponse {
+   pub file_cid: String, 
+   pub decryption_keys: DecryptionKeys
+}
+
 pub async fn request(
    request: KeyRequest,
    orion_secret: String
-) -> std::io::Result<DecryptionKeys> {
+) -> std::io::Result<KeyResponse> {
 
    // Get the data from IFPS
    let client = Client::default();
+   let url = format!("https://{}.ipfs.dweb.link/", request.key_cid);
+   println!("Getting url: {:?}", url);
    let response = client
-      .get(format!("https://ipfs.io/ipfs/{}", request.cid))
+      .get(url)
       .timeout(std::time::Duration::new(20, 0))
       .send()
       .await;
-
+   println!("{:?}", response);
    let response_body_bytes = response.unwrap().body().await.unwrap();
    let response_body_str: String = serde_json::from_slice(&response_body_bytes).unwrap();
    let response_body: Vec<u8> = serde_json::from_str(&response_body_str).unwrap();
@@ -53,6 +61,7 @@ pub async fn request(
    let decrypted_str = str::from_utf8(&decrypted_bytes).unwrap();
    let data: KeyStoreRequest = serde_json::from_str(&decrypted_str).unwrap();
    let mint = data.mint;
+   let file_cid = data.file_cid;
    let recryption_keys = data.recryption_keys;
 
    // Verify that the getter holds the token
@@ -122,5 +131,9 @@ pub async fn request(
    let precrypt_pubkey =
       PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
    let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
-   return Ok(decryption_keys);
+   let key_response = KeyResponse {
+      file_cid: file_cid,
+      decryption_keys: decryption_keys
+   };
+   return Ok(key_response);
 }

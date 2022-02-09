@@ -1,4 +1,3 @@
-use precrypt::DecryptionKeys;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use futures_util::stream::StreamExt as _;
@@ -120,8 +119,8 @@ async fn key_store(req_body: String) -> impl Responder {
 async fn key_request(req_body: String) -> impl Responder {
     let request: request_key::KeyRequest = serde_json::from_str(&req_body).unwrap();
     let secret_string = env::var("ORION_SECRET").unwrap();
-    let decryption_keys: DecryptionKeys = request_key::request(request, secret_string).await.unwrap();
-    let response = serde_json::to_string(&decryption_keys).unwrap();
+    let key_response: request_key::KeyResponse = request_key::request(request, secret_string).await.unwrap();
+    let response = serde_json::to_string(&key_response).unwrap();
     return HttpResponse::Ok().body(response);
 }
 

@@ -54,11 +54,13 @@ pub async fn store(
 
    // Store Key
    println!("Storing key...");
+   let file_cid: String = serde_json::from_str(&file_response_json["cid"].to_string()).unwrap();
    let recryption_keys_array = std::fs::read(recrypt_key_string).unwrap();
    let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array).unwrap();
    let key_store = store_key::KeyStoreRequest {
       recryption_keys: recryption_keys,
       mint: mint,
+      file_cid: file_cid
    };
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)
       .await
@@ -68,10 +70,10 @@ pub async fn store(
    fs::remove_dir_all(&request_uuid).unwrap();
 
    // Write file CID and key CID to json in the folder with an expiration time
-   if !Path::new("store_requests").is_dir() {
-      fs::create_dir("store_requests").unwrap();
+   if !Path::new("store_results").is_dir() {
+      fs::create_dir("store_results").unwrap();
    }
-   let result_file_str = &format!("store_requests/{},json", request_uuid);
+   let result_file_str = &format!("store_results/{},json", request_uuid);
    std::fs::write(
       result_file_str,
       serde_json::to_string(&json!({
