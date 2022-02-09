@@ -5,7 +5,6 @@ use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use std::env;
 use std::fs;
-use std::thread;
 use std::io::Write;
 use uuid::Uuid;
 use std::ffi::OsStr;
@@ -29,7 +28,7 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
 
     // Write file to disk using multipart stream
     let mut file_count = 0;
-    let mut mint: String;
+    let mut mint: Option<String> = None;
     while let Some(item) = payload.next().await {
         file_count += 1;
         match file_count {
@@ -44,7 +43,7 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                 while let Some(chunk) = mint_field.next().await {
                     bytes.append(&mut chunk.unwrap().to_vec());
                 }
-                mint = std::str::from_utf8(&bytes).unwrap().to_string();
+                mint = Some(std::str::from_utf8(&bytes).unwrap().to_string());
             },
             2 => {
                 println!("file");
@@ -70,8 +69,11 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
     }
 
     let file_uuid_c = file_uuid.clone();
-    thread::spawn(move || async {
-        store_file::store(file_uuid_c, THREADS, MEM_SIZE);
+    let orion_string = env::var("ORION_SECRET").unwrap();
+    let web3_token = env::var("WEB3").unwrap();
+    let mint = mint.unwrap().clone();
+    actix_web::rt::spawn(async move {
+        store_file::store(file_uuid_c, mint, orion_string, web3_token, THREADS, MEM_SIZE).await;
     });
     return HttpResponse::Ok().body(file_uuid);
 }
