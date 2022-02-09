@@ -1,3 +1,4 @@
+use precrypt::DecryptionKeys;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 use serde_json::json;
@@ -11,11 +12,11 @@ use generic_array::GenericArray;
 use crate::store_key::*;
 
 #[derive(Serialize, Deserialize)]
-pub struct RecryptRequest {
-   cid: String,
-   precrypt_pubkey: Vec<u8>,    // recrypt key
-   sol_pubkey: Vec<u8>,         // sol pubkey
-   sol_signed_message: Vec<u8>, // sol signed message
+pub struct KeyRequest {
+   pub cid: String,
+   pub precrypt_pubkey: Vec<u8>,    // recrypt key
+   pub sol_pubkey: Vec<u8>,         // sol pubkey
+   pub sol_signed_message: Vec<u8>, // sol signed message
 }
 
 #[derive(Serialize, Deserialize)]
@@ -29,14 +30,15 @@ struct SolanaJSONRPCResultValue {
 }
 
 pub async fn request(
-   request: RecryptRequest,
+   request: KeyRequest,
    orion_secret: String
-) -> std::io::Result<String> {
+) -> std::io::Result<DecryptionKeys> {
 
    // Get the data from IFPS
    let client = Client::default();
    let response = client
       .get(format!("https://ipfs.io/ipfs/{}", request.cid))
+      .timeout(std::time::Duration::new(20, 0))
       .send()
       .await;
 
@@ -120,5 +122,5 @@ pub async fn request(
    let precrypt_pubkey =
       PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
    let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
-   return Ok(serde_json::to_string(&decryption_keys).unwrap());
+   return Ok(decryption_keys);
 }

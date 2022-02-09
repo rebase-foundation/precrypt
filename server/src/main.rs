@@ -1,3 +1,4 @@
+use precrypt::DecryptionKeys;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use futures_util::stream::StreamExt as _;
@@ -20,10 +21,10 @@ const MEM_SIZE: usize = 50000000;
 
 #[post("/file/store")]
 async fn file_store(mut payload: Multipart) -> impl Responder {
-    let file_uuid: String = Uuid::new_v4().to_simple().to_string();
-    fs::create_dir(&file_uuid).unwrap();
-
-    let raw_file_string = format!("{}/plaintext.bin", file_uuid);
+    // UUID for request
+    let request_uuid: String = Uuid::new_v4().to_simple().to_string();
+    fs::create_dir(&request_uuid).unwrap();
+    let raw_file_string = format!("{}/plaintext.bin", request_uuid);
     let raw_file_path = OsStr::new(&raw_file_string);
 
     // Write file to disk using multipart stream
@@ -33,7 +34,6 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
         file_count += 1;
         match file_count {
             1 => {
-                println!("mint");
                 let mut mint_field = item.unwrap();
                 let field_content = mint_field.content_disposition().unwrap();
                 let field_name = field_content.get_name().unwrap();
@@ -46,20 +46,17 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                 mint = Some(std::str::from_utf8(&bytes).unwrap().to_string());
             },
             2 => {
-                println!("file");
                 let mut field = item.unwrap();
                 println!(
                     "Uploading: {}",
                     field.content_disposition().unwrap().get_filename().unwrap()
                 );
-        
                 let mut out = fs::OpenOptions::new()
                     .write(true)
                     .append(true)
                     .create_new(true)
                     .open(raw_file_path)
                     .unwrap();
-        
                 while let Some(chunk) = field.next().await {
                     out.write(&chunk.unwrap()).unwrap();
                 }
@@ -68,15 +65,37 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
         }
     }
 
-    let file_uuid_c = file_uuid.clone();
+    let request_uuid_c = request_uuid.clone();
     let orion_string = env::var("ORION_SECRET").unwrap();
     let web3_token = env::var("WEB3").unwrap();
     let mint = mint.unwrap().clone();
     actix_web::rt::spawn(async move {
-        store_file::store(file_uuid_c, mint, orion_string, web3_token, THREADS, MEM_SIZE).await;
+        store_file::store(request_uuid_c, mint, orion_string, web3_token, THREADS, MEM_SIZE).await;
     });
-    return HttpResponse::Ok().body(file_uuid);
+    return HttpResponse::Ok().body(request_uuid);
 }
+
+#[post("/file/request")]
+async fn file_request(req_body: String) -> impl Responder {
+    let req: request_file::FileRequest = serde_json::from_str(&req_body).unwrap();
+    
+    // UUID for request
+    let request_uuid: String = Uuid::new_v4().to_simple().to_string();
+    fs::create_dir(&request_uuid).unwrap();
+
+    // Spawn the worker for request
+    let orion_string = env::var("ORION_SECRET").unwrap();
+    let web3_token = env::var("WEB3").unwrap();
+    let request_uuid_c = request_uuid.clone();
+    actix_web::rt::spawn(async move {
+        request_file::request(req, request_uuid_c, orion_string, web3_token, THREADS).await;
+    });
+
+    // Get the uuid
+    return HttpResponse::Ok().body(request_uuid);
+}
+
+// TODO: Status endpoint that takes UUID and serves status/results then clears files
 
 // Generates Orion keys to be used for IPFS storage
 #[get("/keygen")]
@@ -99,9 +118,10 @@ async fn key_store(req_body: String) -> impl Responder {
 
 #[post("/key/request")]
 async fn key_request(req_body: String) -> impl Responder {
-    let request: request_key::RecryptRequest = serde_json::from_str(&req_body).unwrap();
+    let request: request_key::KeyRequest = serde_json::from_str(&req_body).unwrap();
     let secret_string = env::var("ORION_SECRET").unwrap();
-    let response = request_key::request(request, secret_string).await.unwrap();
+    let decryption_keys: DecryptionKeys = request_key::request(request, secret_string).await.unwrap();
+    let response = serde_json::to_string(&decryption_keys).unwrap();
     return HttpResponse::Ok().body(response);
 }
 
@@ -127,6 +147,7 @@ async fn main() -> std::io::Result<()> {
             .service(key_request)
             .service(keygen)
             .service(file_store)
+            .service(file_request)
     })
     .bind(host)?
     .run()

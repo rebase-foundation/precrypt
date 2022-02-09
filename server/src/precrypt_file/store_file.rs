@@ -9,21 +9,21 @@ use umbral_pre::*;
 use crate::precrypt_key::*;
 
 pub async fn store(
-   file_uuid: String,
+   request_uuid: String,
    mint: String,
    orion_secret: String,
    web3_token: String,
    threads: usize,
    mem_size: usize,
 ) {
-   let raw_file_string = format!("{}/plaintext.bin", file_uuid);
+   let raw_file_string = format!("{}/plaintext.bin", request_uuid);
    let raw_file_path = OsStr::new(&raw_file_string);
 
    // Encrypt file using precrypt
    println!("Encrypting...");
-   let recrypt_key_string = format!("{}/recrypt.json", file_uuid);
+   let recrypt_key_string = format!("{}/recrypt.json", request_uuid);
    let recrypt_key_path = OsStr::new(&recrypt_key_string);
-   let cipher_file_string = &format!("{}/cipher.bin", file_uuid);
+   let cipher_file_string = &format!("{}/cipher.bin", request_uuid);
    let cipher_file_path = OsStr::new(&cipher_file_string);
    let file_key = SecretKey::random();
    precrypt(
@@ -63,14 +63,15 @@ pub async fn store(
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)
       .await
       .unwrap();
+   
    // Cleanup created files
-   fs::remove_dir_all(&file_uuid).unwrap();
+   fs::remove_dir_all(&request_uuid).unwrap();
 
    // Write file CID and key CID to json in the folder with an expiration time
-   if !Path::new("results").is_dir() {
-      fs::create_dir("results").unwrap();
+   if !Path::new("store_requests").is_dir() {
+      fs::create_dir("store_requests").unwrap();
    }
-   let result_file_str = &format!("results/{},json", file_uuid);
+   let result_file_str = &format!("store_requests/{},json", request_uuid);
    std::fs::write(
       result_file_str,
       serde_json::to_string(&json!({
