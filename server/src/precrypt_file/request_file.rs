@@ -1,4 +1,3 @@
-use glob::glob;
 use actix_web::client::Client;
 use precrypt::decrypt;
 use serde::{Deserialize, Serialize};
@@ -21,7 +20,7 @@ pub async fn request(
    req: FileRequest,
    request_uuid: String,
    orion_secret: String,
-   _web3_token: String,
+   web3_token: String,
    threads: usize,
 ) {
    let receiver_secret = SecretKey::random();
@@ -40,8 +39,9 @@ pub async fn request(
    // TODO: Make this work for large files
    let client = Client::default();
    let file_response = client
-      .get(format!("https://{}.ipfs.dweb.link/", key_response.file_cid))
-      .timeout(std::time::Duration::new(20, 0))
+      .get(format!("https://api.web3.storage/car/{}", key_response.file_cid))
+      .header("authorization", format!("Bearer {}", web3_token))
+      .timeout(std::time::Duration::new(120, 0))
       .send()
       .await;
    println!("{:?}", file_response);
@@ -51,21 +51,17 @@ pub async fn request(
    std::fs::write(cipher_car_path, file_response_bytes).unwrap();
    
    println!("Unpacking cipher");
-   let cipher_file_dir = &format!("{}/cipher", request_uuid);
+   let cipher_file_str = &format!("{}/cipher.txt", request_uuid);
+   let cipher_file_path = OsStr::new(&cipher_file_str);
    let pack_command = format!(
       "npx ipfs-car --unpack {} --output {}",
-      cipher_car_string, cipher_file_dir
+      cipher_car_string, cipher_file_str
    );
    Command::new("sh")
       .arg("-c")
       .arg(pack_command)
       .output()
       .expect("failed to execute process");
-
-   let cipher_file_glob = format!("{}/*", cipher_file_dir);
-   let glob_result = glob(&cipher_file_glob).unwrap().next().unwrap().unwrap();
-   let cipher_file_path = glob_result.as_path().as_os_str();
-   println!("{:?}", cipher_file_path);
 
    // Decrypt file with key
    // Write file CID and key CID to json in the folder with an expiration time
