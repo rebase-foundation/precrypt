@@ -1,9 +1,11 @@
 use actix_web::client::Client;
+use glob::glob;
 use precrypt::{precrypt, RecryptionKeys};
 use serde_json::{json, Value};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use std::process::Command;
 use umbral_pre::*;
 
 use crate::precrypt_key::*;
@@ -36,21 +38,66 @@ pub async fn store(
    )
    .unwrap();
 
+   // Prep encrypted file for IPFS
+   println!("Prepping cipher");
+   let cipher_car_string = format!("{}/cipher.car", request_uuid);
+   let pack_command = format!(
+      "npx ipfs-car --pack {} --output {}",
+      cipher_file_string, cipher_car_string
+   );
+   Command::new("sh")
+      .arg("-c")
+      .arg(pack_command)
+      .output()
+      .expect("failed to execute process");
+   let carbites_command = format!(
+      "npx carbites-cli split --size 10MB --strategy treewalk {}",
+      cipher_car_string
+   );
+   Command::new("sh")
+      .arg("-c")
+      .arg(carbites_command)
+      .output()
+      .expect("failed to execute process");
+
    // Upload encrypted file to IPFS
    // TODO: Make this work for files > 100MB
    println!("Storing cipher...");
-   let cipher_bytes = fs::read(cipher_file_path).unwrap();
-   let cipher_str = serde_json::to_string(&cipher_bytes).unwrap();
+   let cipher_car_string = format!("{}/cipher-0.car", request_uuid);
+   let cipher_bytes = fs::read(cipher_car_string).unwrap();
+   let body = actix_web::web::Bytes::from_iter(cipher_bytes);
    let client = Client::default();
    let file_response = client
       .post("https://api.web3.storage/upload")
       .header("authorization", format!("Bearer {}", web3_token))
       .timeout(std::time::Duration::new(20, 0))
-      .send_body(&cipher_str)
+      .send_body(body)
       .await;
    println!("{:?}", file_response);
    let file_response_str = file_response.unwrap().body().await.unwrap();
    let file_response_json: Value = serde_json::from_slice(&file_response_str).unwrap();
+   
+//    let pattern = format!("./{}/cipher-*.car", request_uuid);
+//    let mut file_response_json: Option<Value> = None;
+//    for entry in glob(&pattern).expect("Failed to read glob pattern") {
+//       let path = entry.unwrap();
+//       println!("{:?}", path);
+      
+//       let car_bytes = fs::read(&path).unwrap();
+//       let client = Client::default();
+//       let body = actix_web::web::Bytes::from_iter(car_bytes);
+//       let file_response = client
+//          .post("https://api.web3.storage/car")
+//          .header("authorization", format!("Bearer {}", web3_token))
+//          .header("Content-Type", "application/car")
+//          .timeout(std::time::Duration::new(120, 0))
+//          .send_body(body)
+//          .await;
+//       println!("{:?}", file_response);
+//       let file_response_str = file_response.unwrap().body().await.unwrap();
+//       let json: Value = serde_json::from_slice(&file_response_str).unwrap();
+//       file_response_json = Some(json);
+//   }
 
    // Store Key
    println!("Storing key...");
@@ -83,4 +130,5 @@ pub async fn store(
       .unwrap(),
    )
    .unwrap();
+   println!("DONE");
 }

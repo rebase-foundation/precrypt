@@ -1,13 +1,14 @@
 use actix_cors::Cors;
 use actix_multipart::Multipart;
-use futures_util::stream::StreamExt as _;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
+use futures_util::stream::StreamExt as _;
+use serde::{Deserialize, Serialize};
 use std::env;
+use std::ffi::OsStr;
 use std::fs;
 use std::io::Write;
 use uuid::Uuid;
-use std::ffi::OsStr;
 
 mod precrypt_key;
 use crate::precrypt_key::*;
@@ -21,7 +22,7 @@ const MEM_SIZE: usize = 50000000;
 #[post("/file/store")]
 async fn file_store(mut payload: Multipart) -> impl Responder {
     // UUID for request
-    let request_uuid: String = Uuid::new_v4().to_simple().to_string();
+    let request_uuid: String = format!("store-{}", Uuid::new_v4().to_simple().to_string());
     fs::create_dir(&request_uuid).unwrap();
     let raw_file_string = format!("{}/plaintext.bin", request_uuid);
     let raw_file_path = OsStr::new(&raw_file_string);
@@ -36,14 +37,16 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                 let mut mint_field = item.unwrap();
                 let field_content = mint_field.content_disposition().unwrap();
                 let field_name = field_content.get_name().unwrap();
-                if field_name != "mint" { panic!("Invalid field: expected 'mint'")}
+                if field_name != "mint" {
+                    panic!("Invalid field: expected 'mint'")
+                }
 
                 let mut bytes: Vec<u8> = Vec::new();
                 while let Some(chunk) = mint_field.next().await {
                     bytes.append(&mut chunk.unwrap().to_vec());
                 }
                 mint = Some(std::str::from_utf8(&bytes).unwrap().to_string());
-            },
+            }
             2 => {
                 let mut field = item.unwrap();
                 println!(
@@ -59,8 +62,8 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                 while let Some(chunk) = field.next().await {
                     out.write(&chunk.unwrap()).unwrap();
                 }
-            },
-            _ => panic!("Invalid form data")
+            }
+            _ => panic!("Invalid form data"),
         }
     }
 
@@ -69,7 +72,15 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
     let web3_token = env::var("WEB3").unwrap();
     let mint = mint.unwrap().clone();
     actix_web::rt::spawn(async move {
-        store_file::store(request_uuid_c, mint, orion_string, web3_token, THREADS, MEM_SIZE).await;
+        store_file::store(
+            request_uuid_c,
+            mint,
+            orion_string,
+            web3_token,
+            THREADS,
+            MEM_SIZE,
+        )
+        .await;
     });
     return HttpResponse::Ok().body(request_uuid);
 }
@@ -77,9 +88,8 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
 #[post("/file/request")]
 async fn file_request(req_body: String) -> impl Responder {
     let req: request_file::FileRequest = serde_json::from_str(&req_body).unwrap();
-    
     // UUID for request
-    let request_uuid: String = Uuid::new_v4().to_simple().to_string();
+    let request_uuid: String = format!("request-{}", Uuid::new_v4().to_simple().to_string());
     fs::create_dir(&request_uuid).unwrap();
 
     // Spawn the worker for request
@@ -95,6 +105,39 @@ async fn file_request(req_body: String) -> impl Responder {
 }
 
 // TODO: Status endpoint that takes UUID and serves status/results then clears files
+#[derive(Serialize, Deserialize)]
+struct FileStatusBody {
+    uuid: String,
+}
+
+#[get("file/status")]
+async fn file_status(req_body: String) -> impl Responder {
+    let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
+    let (prefix, _) = body.uuid.split_once("-").unwrap();
+    match prefix {
+        "store" => {
+            let status = status_file::store_status(body.uuid);
+            match status {
+                status_file::StoreStatus::Uploading => return HttpResponse::Ok().body("Uploading"),
+                status_file::StoreStatus::Encrypting => {
+                    return HttpResponse::Ok().body("Encrypting")
+                }
+                status_file::StoreStatus::UploadingIPFS => {
+                    return HttpResponse::Ok().body("Submitting file to IPFS")
+                }
+                status_file::StoreStatus::Ready => return HttpResponse::Ok().body("Ready"),
+                status_file::StoreStatus::NotFound => {
+                    return HttpResponse::Ok().body("Task with uuid not found")
+                }
+            }
+        }
+        "request" => {
+            println!("request")
+        }
+        _ => panic!("Invalid uuid"),
+    }
+    return HttpResponse::Ok().body("OK");
+}
 
 // Generates Orion keys to be used for IPFS storage
 #[get("/keygen")]
@@ -119,7 +162,8 @@ async fn key_store(req_body: String) -> impl Responder {
 async fn key_request(req_body: String) -> impl Responder {
     let request: request_key::KeyRequest = serde_json::from_str(&req_body).unwrap();
     let secret_string = env::var("ORION_SECRET").unwrap();
-    let key_response: request_key::KeyResponse = request_key::request(request, secret_string).await.unwrap();
+    let key_response: request_key::KeyResponse =
+        request_key::request(request, secret_string).await.unwrap();
     let response = serde_json::to_string(&key_response).unwrap();
     return HttpResponse::Ok().body(response);
 }
@@ -147,6 +191,7 @@ async fn main() -> std::io::Result<()> {
             .service(keygen)
             .service(file_store)
             .service(file_request)
+            .service(file_status)
     })
     .bind(host)?
     .run()

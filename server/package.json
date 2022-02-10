@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "carbites-cli": "^1.0.0",
+    "ipfs-car": "^0.6.2"
+  }
+}
