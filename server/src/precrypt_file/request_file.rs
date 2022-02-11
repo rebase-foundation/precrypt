@@ -51,7 +51,7 @@ pub async fn request(
    std::fs::write(cipher_car_path, file_response_bytes).unwrap();
    
    println!("Unpacking cipher");
-   let cipher_file_str = &format!("{}/cipher.txt", request_uuid);
+   let cipher_file_str = &format!("{}/cipher.bin", request_uuid);
    let cipher_file_path = OsStr::new(&cipher_file_str);
    let pack_command = format!(
       "npx ipfs-car --unpack {} --output {}",

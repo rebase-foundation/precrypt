@@ -49,7 +49,7 @@ pub fn request_status(uuid: String) -> RequestStatus {
    let has_folder = Path::new(&format!("{}", &uuid)).is_dir();
    if has_folder {
       let has_car = Path::new(&format!("{}/cipher.car", &uuid)).is_file();
-      let has_cipher = Path::new(&format!("{}/cipher.txt", &uuid)).is_file();
+      let has_cipher = Path::new(&format!("{}/cipher.bin", &uuid)).is_file();
       if !has_car {
          return RequestStatus::DownloadingCipher;
       } else if has_car && !has_cipher {
