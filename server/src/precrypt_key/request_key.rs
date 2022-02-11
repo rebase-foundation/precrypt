@@ -32,6 +32,7 @@ struct SolanaJSONRPCResultValue {
 #[derive(Serialize, Deserialize)]
 pub struct KeyResponse {
    pub file_cid: String, 
+   pub file_extension: String,
    pub decryption_keys: DecryptionKeys
 }
 
@@ -62,6 +63,7 @@ pub async fn request(
    let data: KeyStoreRequest = serde_json::from_str(&decrypted_str).unwrap();
    let mint = data.mint;
    let file_cid = data.file_cid;
+   let file_extension = data.file_extension;
    let recryption_keys = data.recryption_keys;
 
    // Verify that the getter holds the token
@@ -133,6 +135,7 @@ pub async fn request(
    let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
    let key_response = KeyResponse {
       file_cid: file_cid,
+      file_extension: file_extension,
       decryption_keys: decryption_keys
    };
    return Ok(key_response);

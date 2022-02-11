@@ -13,6 +13,7 @@ use crate::precrypt_key::*;
 pub async fn store(
    request_uuid: String,
    mint: String,
+   file_extension: String,
    orion_secret: String,
    web3_token: String,
    threads: usize,
@@ -72,7 +73,6 @@ pub async fn store(
    println!("Root CID: {}", file_root_cid);
 
    // Upload encrypted file to IPFS
-   // TODO: Make this work for files > 100MB
    println!("Storing cipher...");
    let pattern = format!("./{}/cipher-*.car", request_uuid);
    for entry in glob(&pattern).expect("Failed to read glob pattern") {
@@ -80,6 +80,7 @@ pub async fn store(
       println!("{:?}", path);
       let cipher_bytes = fs::read(path).unwrap();
       let body = actix_web::web::Bytes::from_iter(cipher_bytes);
+      // TODO: Resilient client with retries
       let client = Client::default();
       let file_response = client
          .post("https://api.web3.storage/car")
@@ -104,7 +105,8 @@ pub async fn store(
    let key_store = store_key::KeyStoreRequest {
       recryption_keys: recryption_keys,
       mint: mint,
-      file_cid: file_cid
+      file_cid: file_cid,
+      file_extension: file_extension
    };
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)
       .await

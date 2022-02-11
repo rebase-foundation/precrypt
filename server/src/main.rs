@@ -1,3 +1,4 @@
+use glob::glob;
 use std::path::Path;
 use actix_web::HttpRequest;
 use actix_cors::Cors;
@@ -39,6 +40,7 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
     // Write file to disk using multipart stream
     let mut file_count = 0;
     let mut mint: Option<String> = None;
+    let mut file_extension: Option<String> = None;
     while let Some(item) = payload.next().await {
         file_count += 1;
         match file_count {
@@ -58,10 +60,14 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
             }
             2 => {
                 let mut field = item.unwrap();
+                let file_name: String = field.content_disposition().unwrap().get_filename().unwrap().to_string();
+                let (_, ext) = file_name.rsplit_once(".").unwrap();
+                file_extension = Some(ext.to_string());
                 println!(
                     "Uploading: {}",
                     field.content_disposition().unwrap().get_filename().unwrap()
                 );
+                println!("{}", field.content_disposition().unwrap());
                 let mut out = fs::OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -80,10 +86,12 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
     let orion_string = env::var("ORION_SECRET").unwrap();
     let web3_token = env::var("WEB3").unwrap();
     let mint = mint.unwrap().clone();
+    let file_extension = file_extension.unwrap().clone();
     actix_web::rt::spawn(async move {
         store_file::store(
             request_uuid_c,
             mint,
+            file_extension,
             orion_string,
             web3_token,
             THREADS,
@@ -113,7 +121,6 @@ async fn file_request(req_body: String) -> impl Responder {
     return HttpResponse::Ok().body(request_uuid);
 }
 
-// TODO: Status endpoint that takes UUID and serves status/results then clears files
 #[derive(Serialize, Deserialize)]
 struct FileStatusBody {
     uuid: String,
@@ -136,7 +143,9 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             return HttpResponse::Ok().json(json);
         }
         "request" => {
-            let path = format!("request_results/{}.txt", uuid);
+            let pattern = format!("request_results/{}.*", uuid);
+            let path = glob(&pattern).unwrap().next().unwrap().unwrap();
+            println!("{:?}", path);
             if !Path::new(&path).is_file() {
                 return HttpResponse::NotFound().finish();
             }

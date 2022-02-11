@@ -8,7 +8,8 @@ use serde_json::value::Value;
 pub struct KeyStoreRequest {
     pub recryption_keys: RecryptionKeys,
     pub mint: String,
-    pub file_cid: String
+    pub file_cid: String,
+    pub file_extension: String
 }
 
 pub async fn store(
