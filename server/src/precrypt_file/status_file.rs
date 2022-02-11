@@ -1,3 +1,4 @@
+use crate::glob;
 use std::path::Path;
 
 // 1) No folder & No result: Not found
@@ -57,7 +58,9 @@ pub fn request_status(uuid: String) -> RequestStatus {
          return RequestStatus::DecryptingCipher;
       }
    }
-   let has_result = Path::new(&format!("request_results/{}.txt", &uuid)).is_file(); // TODO: update for file ending
+   let pattern = format!("request_results/{}.*", uuid);
+   let path = glob(&pattern).unwrap().next().unwrap().unwrap();
+   let has_result = Path::new(&path).is_file();
    if has_result {
       return RequestStatus::Ready;
    }

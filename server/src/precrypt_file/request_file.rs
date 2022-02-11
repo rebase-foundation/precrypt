@@ -68,7 +68,7 @@ pub async fn request(
    if !Path::new("request_results").is_dir() {
       fs::create_dir("request_results").unwrap();
    }
-   let raw_file_string = format!("request_results/{}.{}", request_uuid, key_response.file_extension); // TODO: Give this a proper file extension
+   let raw_file_string = format!("request_results/{}.{}", request_uuid, key_response.file_extension);
    let raw_file_path = OsStr::new(&raw_file_string);
    decrypt(
       &cipher_file_path,
