@@ -1,14 +1,20 @@
 use actix_cors::Cors;
 use actix_multipart::Multipart;
+use actix_web::web::Bytes;
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
-use futures_util::stream::StreamExt as _;
+use futures_util::never::Never;
+use futures_util::stream::poll_fn;
+use futures_util::stream::StreamExt;
+use futures_util::task::Poll;
 use serde::{Deserialize, Serialize};
-use serde_json::{Value};
+use serde_json::Value;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
-use std::io::Write;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::SeekFrom;
 use uuid::Uuid;
 
 mod precrypt_key;
@@ -124,7 +130,27 @@ async fn file_get(req_body: String) -> impl Responder {
             return HttpResponse::Ok().json(json);
         }
         "request" => {
-            return HttpResponse::Ok().body("Task with uuid not found")
+            let path = format!("request_results/{}.txt", body.uuid);
+            let mem_size: u64 = MEM_SIZE.try_into().unwrap();
+            let mut seek_index: u64 = 0;
+            let read_stream = poll_fn(
+                move |_| -> Poll<Option<std::result::Result<Bytes, Never>>> {
+                    let mut f = File::open(&path).unwrap();
+                    f.seek(SeekFrom::Start(seek_index)).unwrap();
+
+                    let mut buffer = Vec::new();
+                    f.take(mem_size).read_to_end(&mut buffer).unwrap();
+                    seek_index += mem_size + 1;
+                    if buffer.len() == 0 {
+                        // Remove the file once it has been read
+                        fs::remove_file(&path).unwrap();
+                        return Poll::Ready(None);
+                    }
+                    let bytes: Bytes = Bytes::from(buffer);
+                    return Poll::Ready(Some(Ok(bytes)));
+                },
+            );
+            return HttpResponse::Ok().streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
