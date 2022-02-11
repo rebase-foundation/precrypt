@@ -91,7 +91,7 @@ pub async fn store(
       println!("{:?}", file_response);
       let file_response_str = file_response.unwrap().body().await.unwrap();
       let json: Value = serde_json::from_slice(&file_response_str).unwrap();
-      if  file_root_cid.eq(&json["cid"].to_string()) {
+      if file_root_cid.eq(&json["cid"].to_string()) {
          let msg = format!("Received CID different from root: {}", json["cid"].to_string());
          panic!("{}", msg);
       }
@@ -111,6 +111,7 @@ pub async fn store(
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)
       .await
       .unwrap();
+   let key_cid = key_response_json["cid"].to_string().replace("\"", "");
    
    // Cleanup created files
    fs::remove_dir_all(&request_uuid).unwrap();
@@ -123,8 +124,8 @@ pub async fn store(
    std::fs::write(
       result_file_str,
       serde_json::to_string(&json!({
-         "file_response": file_root_cid,
-         "key_response": key_response_json
+         "file_cid": file_root_cid,
+         "key_cid": key_cid
       }))
       .unwrap(),
    )
