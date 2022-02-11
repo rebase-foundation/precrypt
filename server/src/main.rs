@@ -1,3 +1,4 @@
+use std::path::Path;
 use actix_web::HttpRequest;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
@@ -126,6 +127,9 @@ async fn file_get(req: HttpRequest) -> impl Responder {
     match prefix {
         "store" => {
             let path = format!("store_results/{}.json", uuid);
+            if !Path::new(&path).is_file() {
+                return HttpResponse::NotFound().finish();
+            }
             let result_bytes = fs::read(&path).unwrap();
             fs::remove_file(&path).unwrap();
             let json: Value = serde_json::from_slice(&result_bytes).unwrap();
@@ -133,6 +137,9 @@ async fn file_get(req: HttpRequest) -> impl Responder {
         }
         "request" => {
             let path = format!("request_results/{}.txt", uuid);
+            if !Path::new(&path).is_file() {
+                return HttpResponse::NotFound().finish();
+            }
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
