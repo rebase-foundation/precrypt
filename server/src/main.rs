@@ -134,11 +134,25 @@ async fn file_status(req_body: String) -> impl Responder {
             }
         }
         "request" => {
-            println!("request")
+            let status = status_file::request_status(body.uuid);
+            match status {
+                status_file::RequestStatus::DownloadingCipher => {
+                    return HttpResponse::Ok().body("Downloading cipher from IFPS")
+                }
+                status_file::RequestStatus::UnpackingCipher => {
+                    return HttpResponse::Ok().body("Unpacking cipher file")
+                }
+                status_file::RequestStatus::DecryptingCipher => {
+                    return HttpResponse::Ok().body("Decrypting cipher with precrypt")
+                }
+                status_file::RequestStatus::Ready => return HttpResponse::Ok().body("Ready"),
+                status_file::RequestStatus::NotFound => {
+                    return HttpResponse::Ok().body("Task with uuid not found")
+                }
+            }
         }
         _ => panic!("Invalid uuid"),
     }
-    return HttpResponse::Ok().body("OK");
 }
 
 // Generates Orion keys to be used for IPFS storage
