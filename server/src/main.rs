@@ -1,3 +1,4 @@
+use actix_web::HttpRequest;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
@@ -117,20 +118,21 @@ struct FileStatusBody {
     uuid: String,
 }
 
-#[get("file")]
-async fn file_get(req_body: String) -> impl Responder {
-    let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
-    let (prefix, _) = body.uuid.split_once("-").unwrap();
+#[get("file/{uuid}")]
+async fn file_get(req: HttpRequest) -> impl Responder {
+    let uuid: String = req.match_info().load().unwrap();
+    // let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
+    let (prefix, _) = uuid.split_once("-").unwrap();
     match prefix {
         "store" => {
-            let path = format!("store_results/{}.json", body.uuid);
+            let path = format!("store_results/{}.json", uuid);
             let result_bytes = fs::read(&path).unwrap();
             fs::remove_file(&path).unwrap();
             let json: Value = serde_json::from_slice(&result_bytes).unwrap();
             return HttpResponse::Ok().json(json);
         }
         "request" => {
-            let path = format!("request_results/{}.txt", body.uuid);
+            let path = format!("request_results/{}.txt", uuid);
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
