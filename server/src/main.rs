@@ -118,12 +118,14 @@ async fn file_status(req_body: String) -> impl Responder {
         "store" => {
             let status = status_file::store_status(body.uuid);
             match status {
-                status_file::StoreStatus::Uploading => return HttpResponse::Ok().body("Uploading"),
-                status_file::StoreStatus::Encrypting => {
-                    return HttpResponse::Ok().body("Encrypting")
+                status_file::StoreStatus::EncryptingPlaintext => {
+                    return HttpResponse::Ok().body("Encrypting plaintext with precrypt")
                 }
-                status_file::StoreStatus::UploadingIPFS => {
-                    return HttpResponse::Ok().body("Submitting file to IPFS")
+                status_file::StoreStatus::ProcessingCipher => {
+                    return HttpResponse::Ok().body("Process cipher for storage on IPFS")
+                }
+                status_file::StoreStatus::UploadingCipher => {
+                    return HttpResponse::Ok().body("Uploading cipher to IPFS")
                 }
                 status_file::StoreStatus::Ready => return HttpResponse::Ok().body("Ready"),
                 status_file::StoreStatus::NotFound => {

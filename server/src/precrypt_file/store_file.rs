@@ -117,7 +117,7 @@ pub async fn store(
    if !Path::new("store_results").is_dir() {
       fs::create_dir("store_results").unwrap();
    }
-   let result_file_str = &format!("store_results/{},json", request_uuid);
+   let result_file_str = &format!("store_results/{}.json", request_uuid);
    std::fs::write(
       result_file_str,
       serde_json::to_string(&json!({
