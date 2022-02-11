@@ -1,4 +1,7 @@
+use std::io::Write;
+use crate::fs::OpenOptions;
 use actix_web::client::Client;
+use futures_util::StreamExt;
 use precrypt::decrypt;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
@@ -36,20 +39,36 @@ pub async fn request(
       .unwrap();
 
    // Get file from IFPS
-   // TODO: Make this work for large files
+   // Read this as a stream to make it work for large files
    let client = Client::default();
-   let file_response = client
-      .get(format!("https://api.web3.storage/car/{}", key_response.file_cid))
+   let mut response_stream = client
+      .get(format!(
+         "https://api.web3.storage/car/{}",
+         key_response.file_cid
+      ))
       .header("authorization", format!("Bearer {}", web3_token))
-      .timeout(std::time::Duration::new(120, 0))
+      .timeout(std::time::Duration::new(120, 0)) // TODO: This is probably an issue but it seems like its between chunks?
       .send()
-      .await;
-   println!("{:?}", file_response);
-   let file_response_bytes = file_response.unwrap().body().limit(10000000000).await.unwrap(); // without limit() this errors at > 256KB
+      .await
+      .unwrap();
+
+   // Prep the file handle we will write to
    let cipher_car_string = &format!("{}/cipher.car", request_uuid);
    let cipher_car_path = OsStr::new(&cipher_car_string);
-   std::fs::write(cipher_car_path, file_response_bytes).unwrap();
+   let mut out = OpenOptions::new()
+      .write(true)
+      .append(true)
+      .create_new(true)
+      .open(cipher_car_path)
+      .unwrap();
    
+   // Poll each chunk of the stream and append it to the handle
+   while let Some(chunk) = response_stream.next().await {
+      let chunk = chunk.unwrap();
+      out.write(&chunk).unwrap();
+   }
+   // TODO: Error if this doesn't write the whole file
+
    println!("Unpacking cipher");
    let cipher_file_str = &format!("{}/cipher.bin", request_uuid);
    let cipher_file_path = OsStr::new(&cipher_file_str);

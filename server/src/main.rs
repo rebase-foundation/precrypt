@@ -10,7 +10,6 @@ use futures_util::never::Never;
 use futures_util::stream::poll_fn;
 use futures_util::stream::StreamExt;
 use futures_util::task::Poll;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::env;
 use std::ffi::OsStr;
@@ -121,15 +120,9 @@ async fn file_request(req_body: String) -> impl Responder {
     return HttpResponse::Ok().body(request_uuid);
 }
 
-#[derive(Serialize, Deserialize)]
-struct FileStatusBody {
-    uuid: String,
-}
-
 #[get("file/{uuid}")]
 async fn file_get(req: HttpRequest) -> impl Responder {
     let uuid: String = req.match_info().load().unwrap();
-    // let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
     let (prefix, _) = uuid.split_once("-").unwrap();
     match prefix {
         "store" => {
@@ -174,13 +167,13 @@ async fn file_get(req: HttpRequest) -> impl Responder {
     }
 }
 
-#[get("file/status")]
-async fn file_status(req_body: String) -> impl Responder {
-    let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
-    let (prefix, _) = body.uuid.split_once("-").unwrap();
+#[get("file/status/{uuid}")]
+async fn file_status(req: HttpRequest) -> impl Responder {
+    let uuid: String = req.match_info().load().unwrap();
+    let (prefix, _) = uuid.split_once("-").unwrap();
     match prefix {
         "store" => {
-            let status = status_file::store_status(body.uuid);
+            let status = status_file::store_status(uuid);
             match status {
                 status_file::StoreStatus::EncryptingPlaintext => {
                     return HttpResponse::Ok().body("Encrypting plaintext with precrypt")
@@ -198,7 +191,7 @@ async fn file_status(req_body: String) -> impl Responder {
             }
         }
         "request" => {
-            let status = status_file::request_status(body.uuid);
+            let status = status_file::request_status(uuid);
             match status {
                 status_file::RequestStatus::DownloadingCipher => {
                     return HttpResponse::Ok().body("Downloading cipher from IFPS")
