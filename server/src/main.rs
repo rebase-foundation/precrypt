@@ -4,6 +4,7 @@ use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use futures_util::stream::StreamExt as _;
 use serde::{Deserialize, Serialize};
+use serde_json::{Value};
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -110,6 +111,25 @@ struct FileStatusBody {
     uuid: String,
 }
 
+#[get("file")]
+async fn file_get(req_body: String) -> impl Responder {
+    let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
+    let (prefix, _) = body.uuid.split_once("-").unwrap();
+    match prefix {
+        "store" => {
+            let path = format!("store_results/{}.json", body.uuid);
+            let result_bytes = fs::read(&path).unwrap();
+            fs::remove_file(&path).unwrap();
+            let json: Value = serde_json::from_slice(&result_bytes).unwrap();
+            return HttpResponse::Ok().json(json);
+        }
+        "request" => {
+            return HttpResponse::Ok().body("Task with uuid not found")
+        }
+        _ => panic!("Invalid uuid"),
+    }
+}
+
 #[get("file/status")]
 async fn file_status(req_body: String) -> impl Responder {
     let body: FileStatusBody = serde_json::from_str(&req_body).unwrap();
@@ -208,6 +228,7 @@ async fn main() -> std::io::Result<()> {
             .service(file_store)
             .service(file_request)
             .service(file_status)
+            .service(file_get)
     })
     .bind(host)?
     .run()
