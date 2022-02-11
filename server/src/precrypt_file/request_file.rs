@@ -45,7 +45,7 @@ pub async fn request(
       .send()
       .await;
    println!("{:?}", file_response);
-   let file_response_bytes = file_response.unwrap().body().await.unwrap();
+   let file_response_bytes = file_response.unwrap().body().limit(10000000000).await.unwrap(); // without limit() this errors at > 256KB
    let cipher_car_string = &format!("{}/cipher.car", request_uuid);
    let cipher_car_path = OsStr::new(&cipher_car_string);
    std::fs::write(cipher_car_path, file_response_bytes).unwrap();

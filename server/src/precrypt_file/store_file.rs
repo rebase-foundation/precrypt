@@ -52,7 +52,7 @@ pub async fn store(
       .output()
       .expect("failed to execute process");
    let carbites_command = format!(
-      "npx carbites-cli split --size 1MB --strategy treewalk {}",
+      "npx carbites-cli split --size 10MB --strategy treewalk {}",
       cipher_car_string
    );
    Command::new("sh")
