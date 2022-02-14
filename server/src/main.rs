@@ -1,4 +1,3 @@
-use glob::glob;
 use std::path::Path;
 use actix_web::HttpRequest;
 use actix_cors::Cors;
@@ -12,7 +11,6 @@ use futures_util::stream::StreamExt;
 use futures_util::task::Poll;
 use serde_json::Value;
 use std::env;
-use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
@@ -25,6 +23,9 @@ use crate::precrypt_key::*;
 mod precrypt_file;
 use crate::precrypt_file::*;
 
+mod util;
+use crate::util::path_builder::{build_path, PathBuilder};
+
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
 
@@ -33,8 +34,7 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
     // UUID for request
     let request_uuid: String = format!("store-{}", Uuid::new_v4().to_simple().to_string());
     fs::create_dir(&request_uuid).unwrap();
-    let raw_file_string = format!("{}/plaintext.bin", request_uuid);
-    let raw_file_path = OsStr::new(&raw_file_string);
+    let plaintext_path = build_path(PathBuilder::Plaintext, &request_uuid);
 
     // Write file to disk using multipart stream
     let mut file_count = 0;
@@ -71,7 +71,7 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                     .write(true)
                     .append(true)
                     .create_new(true)
-                    .open(raw_file_path)
+                    .open(&plaintext_path)
                     .unwrap();
                 while let Some(chunk) = field.next().await {
                     out.write(&chunk.unwrap()).unwrap();
@@ -126,7 +126,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
     let (prefix, _) = uuid.split_once("-").unwrap();
     match prefix {
         "store" => {
-            let path = format!("store_results/{}.json", uuid);
+            let path = build_path(PathBuilder::StoreResult, &uuid);
             if !Path::new(&path).is_file() {
                 return HttpResponse::NotFound().finish();
             }
@@ -136,12 +136,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             return HttpResponse::Ok().json(json);
         }
         "request" => {
-            let pattern = format!("request_results/{}.*", uuid);
-            let path = glob(&pattern).unwrap().next().unwrap().unwrap();
-            println!("{:?}", path);
-            if !Path::new(&path).is_file() {
-                return HttpResponse::NotFound().finish();
-            }
+            let path = build_path(PathBuilder::RequestResultGlob, &uuid);
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
@@ -248,6 +243,11 @@ async fn main() -> std::io::Result<()> {
         Ok(host) => host,
         Err(_e) => "0.0.0.0:8000".to_string(),
     };
+
+    match env::var("DATA") {
+        Ok(_) => (),
+        Err(_) => env::set_var("DATA", "/data"),
+    }
 
     println!("Starting server on {:?}", host);
     HttpServer::new(|| {

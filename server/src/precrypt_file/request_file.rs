@@ -12,6 +12,8 @@ use std::process::Command;
 use crate::precrypt_key::*;
 use umbral_pre::*;
 
+use crate::util::path_builder::{build_path, PathBuilder};
+
 #[derive(Serialize, Deserialize)]
 pub struct FileRequest {
    key_cid: String,
@@ -53,13 +55,12 @@ pub async fn request(
       .unwrap();
 
    // Prep the file handle we will write to
-   let cipher_car_string = &format!("{}/cipher.car", request_uuid);
-   let cipher_car_path = OsStr::new(&cipher_car_string);
+   let cipher_car_path = build_path(PathBuilder::CipherCar, &request_uuid);
    let mut out = OpenOptions::new()
       .write(true)
       .append(true)
       .create_new(true)
-      .open(cipher_car_path)
+      .open(&cipher_car_path)
       .unwrap();
    
    // Poll each chunk of the stream and append it to the handle
@@ -70,11 +71,10 @@ pub async fn request(
    // TODO: Error if this doesn't write the whole file
 
    println!("Unpacking cipher");
-   let cipher_file_str = &format!("{}/cipher.bin", request_uuid);
-   let cipher_file_path = OsStr::new(&cipher_file_str);
+   let cipher_file_path = build_path(PathBuilder::Cipher, &request_uuid);
    let pack_command = format!(
       "npx ipfs-car --unpack {} --output {}",
-      cipher_car_string, cipher_file_str
+      &cipher_car_path, cipher_file_path
    );
    Command::new("sh")
       .arg("-c")
@@ -84,19 +84,21 @@ pub async fn request(
 
    // Decrypt file with key
    // Write file CID and key CID to json in the folder with an expiration time
-   if !Path::new("request_results").is_dir() {
-      fs::create_dir("request_results").unwrap();
+   let results_dir = build_path(PathBuilder::RequestResultDir, &request_uuid);
+   if !Path::new(&results_dir).is_dir() {
+      fs::create_dir(&results_dir).unwrap();
    }
-   let raw_file_string = format!("request_results/{}.{}", request_uuid, key_response.file_extension);
-   let raw_file_path = OsStr::new(&raw_file_string);
+   let plaintext_path = build_path(PathBuilder::RequestResult, &request_uuid);
+   // Add proper file extension
+   let plaintext_path = plaintext_path.replace(".bin", &format!(".{}", &key_response.file_extension));
    decrypt(
-      &cipher_file_path,
-      raw_file_path,
+      OsStr::new(&cipher_file_path),
+      OsStr::new(&plaintext_path),
       receiver_secret,
       &mut key_response.decryption_keys,
       threads,
    )
    .unwrap();
-   fs::remove_dir_all(&request_uuid).unwrap();
+   fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
    println!("DONE!");
 }

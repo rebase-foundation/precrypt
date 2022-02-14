@@ -1,5 +1,5 @@
-use crate::glob;
 use std::path::Path;
+use crate::util::path_builder::{build_path, PathBuilder};
 
 // 1) No folder & No result: Not found
 // 2) Folder & Plaintext: Encrypting
@@ -14,15 +14,18 @@ pub enum StoreStatus {
    NotFound
 }
 pub fn store_status(uuid: String) -> StoreStatus {
-   let has_result = Path::new(&format!("store_results/{}.json", &uuid)).is_file();
+   let store_result_path = build_path(PathBuilder::StoreResult, &uuid);
+   let has_result = Path::new(&store_result_path).is_file();
    if has_result {
       return StoreStatus::Ready;
    }
 
-   let has_folder = Path::new(&format!("{}", &uuid)).is_dir();
+   let has_folder = Path::new(&build_path(PathBuilder::TaskDir, &uuid)).is_dir();
    if has_folder {
-      let has_cipher = Path::new(&format!("{}/cipher.bin", &uuid)).is_file();
-      let has_car = Path::new(&format!("{}/cipher-0.car", &uuid)).is_file();
+      let cipher_path = build_path(PathBuilder::Cipher, &uuid);
+      let has_cipher = Path::new(&cipher_path).is_file();
+      let car_path = build_path(PathBuilder::Car, &uuid);
+      let has_car = Path::new(&car_path).is_file();
       if !has_cipher {
          return StoreStatus::EncryptingPlaintext;
       } else if has_cipher && !has_car {
@@ -46,10 +49,12 @@ pub enum RequestStatus {
    NotFound,
 }
 pub fn request_status(uuid: String) -> RequestStatus {
-   let has_folder = Path::new(&format!("{}", &uuid)).is_dir();
+   let has_folder = Path::new(&build_path(PathBuilder::TaskDir, &uuid)).is_dir();
    if has_folder {
-      let has_car = Path::new(&format!("{}/cipher.car", &uuid)).is_file();
-      let has_cipher = Path::new(&format!("{}/cipher.bin", &uuid)).is_file();
+      let cipher_path = build_path(PathBuilder::Cipher, &uuid);
+      let has_cipher = Path::new(&cipher_path).is_file();
+      let car_path = build_path(PathBuilder::Car, &uuid);
+      let has_car = Path::new(&car_path).is_file();
       if !has_car {
          return RequestStatus::DownloadingCipher;
       } else if has_car && !has_cipher {
@@ -58,8 +63,7 @@ pub fn request_status(uuid: String) -> RequestStatus {
          return RequestStatus::DecryptingCipher;
       }
    }
-   let pattern = format!("request_results/{}.*", uuid);
-   let path = glob(&pattern).unwrap().next().unwrap().unwrap();
+   let path = build_path(PathBuilder::RequestResultGlob, &uuid);
    let has_result = Path::new(&path).is_file();
    if has_result {
       return RequestStatus::Ready;

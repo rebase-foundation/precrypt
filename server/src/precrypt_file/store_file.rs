@@ -10,6 +10,8 @@ use umbral_pre::*;
 
 use crate::precrypt_key::*;
 
+use crate::util::path_builder::{build_path, PathBuilder};
+
 pub async fn store(
    request_uuid: String,
    mint: String,
@@ -19,21 +21,18 @@ pub async fn store(
    threads: usize,
    mem_size: usize,
 ) {
-   let raw_file_string = format!("{}/plaintext.bin", request_uuid);
-   let raw_file_path = OsStr::new(&raw_file_string);
+   let plaintext_path = build_path(PathBuilder::Plaintext, &request_uuid);
 
    // Encrypt file using precrypt
    println!("Encrypting...");
-   let recrypt_key_string = format!("{}/recrypt.json", request_uuid);
-   let recrypt_key_path = OsStr::new(&recrypt_key_string);
-   let cipher_file_string = &format!("{}/cipher.bin", request_uuid);
-   let cipher_file_path = OsStr::new(&cipher_file_string);
+   let recrypt_key_path = build_path(PathBuilder::RecryptKey, &request_uuid);
+   let cipher_file_path = build_path(PathBuilder::Cipher, &request_uuid);
    let file_key = SecretKey::random();
    precrypt(
-      raw_file_path,
+      OsStr::new(&plaintext_path),
       file_key,
-      &recrypt_key_path,
-      cipher_file_path,
+      OsStr::new(&recrypt_key_path),
+      OsStr::new(&cipher_file_path),
       threads,
       mem_size,
    )
@@ -42,10 +41,10 @@ pub async fn store(
    // Prep encrypted file for IPFS
    // TODO: CHECK STD_ERRS FROM COMMANDS
    println!("Prepping cipher");
-   let cipher_car_string = format!("{}/cipher.car", request_uuid);
+   let cipher_car_path = build_path(PathBuilder::CipherCar, &request_uuid);
    let pack_command = format!(
       "npx ipfs-car --wrapWithDirectory false --pack {} --output {}",
-      cipher_file_string, cipher_car_string
+      cipher_file_path, cipher_car_path
    );
    Command::new("sh")
       .arg("-c")
@@ -54,7 +53,7 @@ pub async fn store(
       .expect("failed to execute process");
    let carbites_command = format!(
       "npx carbites-cli split --size 90MB --strategy treewalk {}",
-      cipher_car_string
+      cipher_car_path
    );
    Command::new("sh")
       .arg("-c")
@@ -63,7 +62,7 @@ pub async fn store(
       .expect("failed to execute process");
 
    // Get root cid for the cars
-   let get_cid_command = format!("npx ipfs-car --list-roots {}/cipher-0.car", request_uuid);
+   let get_cid_command = format!("npx ipfs-car --list-roots {}", cipher_car_path);
    let output = Command::new("sh")
       .arg("-c")
       .arg(get_cid_command)
@@ -74,7 +73,7 @@ pub async fn store(
 
    // Upload encrypted file to IPFS
    println!("Storing cipher...");
-   let pattern = format!("./{}/cipher-*.car", request_uuid);
+   let pattern = build_path(PathBuilder::CarPattern, &request_uuid);
    for entry in glob(&pattern).expect("Failed to read glob pattern") {
       let path = entry.unwrap();
       println!("{:?}", path);
@@ -100,7 +99,7 @@ pub async fn store(
    // Store Key
    println!("Storing key...");
    let file_cid: String = file_root_cid.to_string();
-   let recryption_keys_array = std::fs::read(recrypt_key_string).unwrap();
+   let recryption_keys_array = std::fs::read(recrypt_key_path).unwrap();
    let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array).unwrap();
    let key_store = store_key::KeyStoreRequest {
       recryption_keys: recryption_keys,
@@ -114,13 +113,14 @@ pub async fn store(
    let key_cid = key_response_json["cid"].to_string().replace("\"", "");
    
    // Cleanup created files
-   fs::remove_dir_all(&request_uuid).unwrap();
+   fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
 
    // Write file CID and key CID to json in the folder with an expiration time
-   if !Path::new("store_results").is_dir() {
-      fs::create_dir("store_results").unwrap();
+   let results_dir = build_path(PathBuilder::StoreResultDir, &request_uuid);
+   if !Path::new(&results_dir).is_dir() {
+      fs::create_dir(&results_dir).unwrap();
    }
-   let result_file_str = &format!("store_results/{}.json", request_uuid);
+   let result_file_str = build_path(PathBuilder::StoreResult, &request_uuid);
    std::fs::write(
       result_file_str,
       serde_json::to_string(&json!({
