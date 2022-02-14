@@ -11,6 +11,7 @@ source="precrypt_data"
 destination="/data"
 
 [env]
+DATA="/data"
 
 [experimental]
   allowed_public_ports = []

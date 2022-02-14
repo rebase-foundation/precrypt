@@ -246,7 +246,7 @@ async fn main() -> std::io::Result<()> {
 
     match env::var("DATA") {
         Ok(_) => (),
-        Err(_) => env::set_var("DATA", "/data"),
+        Err(_) => env::set_var("DATA", "."),
     }
 
     println!("Starting server on {:?}", host);

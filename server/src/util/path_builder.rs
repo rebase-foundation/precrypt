@@ -1,4 +1,5 @@
 use glob::glob;
+use std::env;
 
 pub enum PathBuilder {
    TaskDir,
@@ -16,44 +17,48 @@ pub enum PathBuilder {
 }
 
 pub fn build_path(path: PathBuilder, uuid: &String) -> String {
-   match path {
+   let rel_path = match path {
       PathBuilder::TaskDir => {
-         return format!("{}", uuid);
+         format!("{}", uuid)
       }
       PathBuilder::Plaintext => {
-         return format!("{}/plaintext.bin", uuid);
+         format!("{}/plaintext.bin", uuid)
       }
       PathBuilder::RecryptKey => {
-         return format!("{}/recrypt.json", uuid);
+         format!("{}/recrypt.json", uuid)
       }
       PathBuilder::CipherCar => {
-         return format!("{}/cipher.car", uuid);
+         format!("{}/cipher.car", uuid)
       }
       PathBuilder::Cipher => {
-         return format!("{}/cipher.bin", uuid);
+         format!("{}/cipher.bin", uuid)
       }
       PathBuilder::Car => {
-         return format!("{}/cipher-0.car", uuid);
+         format!("{}/cipher-0.car", uuid)
       }
       PathBuilder::CarPattern => {
-         return format!("{}/cipher-*.car", uuid);
+         format!("{}/cipher-*.car", uuid)
       }
       PathBuilder::StoreResult => {
-         return format!("store_results/{}.json", uuid);
+         format!("store_results/{}.json", uuid)
       }
       PathBuilder::StoreResultDir => {
-         return "store_results".to_string();
+         "store_results".to_string()
       }
       PathBuilder::RequestResult => {
-         return format!("request_results/{}.bin", uuid);
+         format!("request_results/{}.bin", uuid)
       }
       PathBuilder::RequestResultDir => {
-         return "request_results".to_string();
+         "request_results".to_string()
       }
       PathBuilder::RequestResultGlob => {
          let pattern = format!("request_results/{}.*", uuid);
          let path = glob(&pattern).unwrap().next().unwrap().unwrap();
-         return path.to_str().unwrap().to_string();
+         path.to_str().unwrap().to_string()
       }
-   }
+   };
+   let volume_dir = env::var("DATA").unwrap();
+   let full_path = format!("{}/{}", volume_dir, rel_path);
+   println!("{}", &full_path);
+   return full_path;
 }
