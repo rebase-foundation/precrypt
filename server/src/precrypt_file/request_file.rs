@@ -73,7 +73,7 @@ pub async fn request(
    println!("Unpacking cipher");
    let cipher_file_path = build_path(PathBuilder::Cipher, &request_uuid);
    run_command(format!(
-      "npx ipfs-car --unpack {} --output {}",
+      "ipfs-car --unpack {} --output {}",
       &cipher_car_path, cipher_file_path
    )).unwrap();
 

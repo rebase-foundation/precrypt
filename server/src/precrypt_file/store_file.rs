@@ -43,16 +43,16 @@ pub async fn store(
    println!("Prepping cipher");
    let cipher_car_path = build_path(PathBuilder::CipherCar, &request_uuid);
    run_command(format!(
-      "npx ipfs-car --wrapWithDirectory false --pack {} --output {}",
+      "ipfs-car --wrapWithDirectory false --pack {} --output {}",
       cipher_file_path, cipher_car_path
    )).unwrap();
    run_command(format!(
-      "npx carbites-cli split --size 90MB --strategy treewalk {}",
+      "carbites-cli split --size 90MB --strategy treewalk {}",
       cipher_car_path
    )).unwrap();
 
    // Get root cid for the cars
-   let output = run_command(format!("npx ipfs-car --list-roots {}", cipher_car_path)).unwrap();
+   let output = run_command(format!("ipfs-car --list-roots {}", cipher_car_path)).unwrap();
    let file_root_cid = std::str::from_utf8(&output.stdout).unwrap().replace("\n", "");
    println!("Root CID: {}", file_root_cid);
 
