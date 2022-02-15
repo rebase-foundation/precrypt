@@ -47,7 +47,7 @@ pub async fn request(
    println!("Getting url: {:?}", url);
    let response = client
       .get(url)
-      .timeout(std::time::Duration::new(20, 0))
+      .timeout(std::time::Duration::new(120, 0))
       .send()
       .await;
    println!("{:?}", response);

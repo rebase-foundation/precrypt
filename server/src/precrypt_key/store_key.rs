@@ -32,7 +32,7 @@ pub async fn store(
     let response = client
         .post("https://api.web3.storage/upload")
         .header("authorization", format!("Bearer {}", web3_token))
-        .timeout(std::time::Duration::new(20, 0))
+        .timeout(std::time::Duration::new(120, 0))
         .send_json(&cipher_str)
         .await;
     println!("{:?}", response);
