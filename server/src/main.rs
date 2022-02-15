@@ -1,9 +1,9 @@
-use std::path::Path;
-use actix_web::HttpRequest;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
-use actix_web::{get, post, App, Error, HttpResponse, HttpServer, Responder};
+use actix_web::Error;
+use actix_web::HttpRequest;
+use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use futures_util::never::Never;
 use futures_util::stream::poll_fn;
@@ -15,6 +15,7 @@ use std::fs;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
+use std::path::Path;
 use uuid::Uuid;
 
 mod precrypt_key;
@@ -24,14 +25,15 @@ mod precrypt_file;
 use crate::precrypt_file::*;
 
 mod util;
-use crate::util::path_builder::{build_path, PathBuilder};
+use crate::util::error_maps::var_error_map;
 use crate::util::get_secrets::get_secrets;
+use crate::util::path_builder::{build_path, PathBuilder};
 
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
 
 #[post("/file/store")]
-async fn file_store(mut payload: Multipart) -> impl Responder {
+async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // UUID for request
     let request_uuid: String = format!("store-{}", Uuid::new_v4().to_simple().to_string());
     fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
@@ -60,7 +62,12 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
             }
             2 => {
                 let mut field = item.unwrap();
-                let file_name: String = field.content_disposition().unwrap().get_filename().unwrap().to_string();
+                let file_name: String = field
+                    .content_disposition()
+                    .unwrap()
+                    .get_filename()
+                    .unwrap()
+                    .to_string();
                 let (_, ext) = file_name.rsplit_once(".").unwrap();
                 file_extension = Some(ext.to_string());
                 println!(
@@ -79,20 +86,16 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                 }
             }
             _ => {
-                return HttpResponse::BadRequest().body("Too many fields");
+                return Ok(HttpResponse::BadRequest().body("Too many fields"));
             }
         }
     }
 
     let request_uuid_c = request_uuid.clone();
-    let secrets = get_secrets();
-    if secrets.is_err() {
-        return HttpResponse::InternalServerError().body("Missing secret environment variable");
-    }
-    let (orion_string, web3_token) = secrets.unwrap();
+    let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
     let mint = mint.unwrap().clone();
     if file_extension.is_none() {
-        return HttpResponse::BadRequest().body("Invalid file field provided");
+        return Ok(HttpResponse::BadRequest().body("Invalid file field provided"));
     }
     let file_extension = file_extension.unwrap().clone();
     actix_web::rt::spawn(async move {
@@ -107,29 +110,25 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
         )
         .await;
     });
-    return HttpResponse::Ok().body(request_uuid);
+    return Ok(HttpResponse::Ok().body(request_uuid));
 }
 
 #[post("/file/request")]
-async fn file_request(req_body: String) -> impl Responder {
+async fn file_request(req_body: String) -> Result<HttpResponse, Error> {
     let req: request_file::FileRequest = serde_json::from_str(&req_body).unwrap();
     // UUID for request
     let request_uuid: String = format!("request-{}", Uuid::new_v4().to_simple().to_string());
     fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
 
     // Spawn the worker for request
-    let secrets = get_secrets();
-    if secrets.is_err() {
-        return HttpResponse::InternalServerError().body("Missing secret environment variable");
-    }
-    let (orion_string, web3_token) = secrets.unwrap();
+    let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
     let request_uuid_c = request_uuid.clone();
     actix_web::rt::spawn(async move {
         request_file::request(req, request_uuid_c, orion_string, web3_token, THREADS).await;
     });
 
     // Get the uuid
-    return HttpResponse::Ok().body(request_uuid);
+    return Ok(HttpResponse::Ok().body(request_uuid));
 }
 
 #[get("file/{uuid}")]
@@ -175,45 +174,47 @@ async fn file_get(req: HttpRequest) -> impl Responder {
 }
 
 #[get("file/status/{uuid}")]
-async fn file_status(req: HttpRequest) -> impl Responder {
+async fn file_status(req: HttpRequest) -> Result<HttpResponse, Error> {
     let uuid: String = req.match_info().load().unwrap();
     let (prefix, _) = uuid.split_once("-").unwrap();
     match prefix {
         "store" => {
             let status = status_file::store_status(uuid);
-            match status {
+            let response = match status {
                 status_file::StoreStatus::EncryptingPlaintext => {
-                    return HttpResponse::Ok().body("Encrypting plaintext with precrypt")
+                    HttpResponse::Ok().body("Encrypting plaintext with precrypt")
                 }
                 status_file::StoreStatus::ProcessingCipher => {
-                    return HttpResponse::Ok().body("Process cipher for storage on IPFS")
+                    HttpResponse::Ok().body("Process cipher for storage on IPFS")
                 }
                 status_file::StoreStatus::UploadingCipher => {
-                    return HttpResponse::Ok().body("Uploading cipher to IPFS")
+                    HttpResponse::Ok().body("Uploading cipher to IPFS")
                 }
-                status_file::StoreStatus::Ready => return HttpResponse::Ok().body("Ready"),
+                status_file::StoreStatus::Ready => HttpResponse::Ok().body("Ready"),
                 status_file::StoreStatus::NotFound => {
-                    return HttpResponse::Ok().body("Task with uuid not found")
+                    HttpResponse::Ok().body("Task with uuid not found")
                 }
-            }
+            };
+            return Ok(response);
         }
         "request" => {
             let status = status_file::request_status(uuid);
-            match status {
+            let response = match status {
                 status_file::RequestStatus::DownloadingCipher => {
-                    return HttpResponse::Ok().body("Downloading cipher from IFPS")
+                    HttpResponse::Ok().body("Downloading cipher from IFPS")
                 }
                 status_file::RequestStatus::UnpackingCipher => {
-                    return HttpResponse::Ok().body("Unpacking cipher file")
+                    HttpResponse::Ok().body("Unpacking cipher file")
                 }
                 status_file::RequestStatus::DecryptingCipher => {
-                    return HttpResponse::Ok().body("Decrypting cipher with precrypt")
+                    HttpResponse::Ok().body("Decrypting cipher with precrypt")
                 }
-                status_file::RequestStatus::Ready => return HttpResponse::Ok().body("Ready"),
+                status_file::RequestStatus::Ready => HttpResponse::Ok().body("Ready"),
                 status_file::RequestStatus::NotFound => {
-                    return HttpResponse::Ok().body("Task with uuid not found")
+                    HttpResponse::Ok().body("Task with uuid not found")
                 }
-            }
+            };
+            return Ok(response);
         }
         _ => panic!("Invalid uuid"),
     }
@@ -228,31 +229,23 @@ async fn keygen() -> impl Responder {
 }
 
 #[post("/key/store")]
-async fn key_store(req_body: String) -> impl Responder {
+async fn key_store(req_body: String) -> Result<HttpResponse, Error> {
     let request: store_key::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
-    let secrets = get_secrets();
-    if secrets.is_err() {
-        return HttpResponse::InternalServerError().body("Missing secret environment variable");
-    }
-    let (orion_string, web3_token) = secrets.unwrap();
+    let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
     let response = store_key::store(request, orion_string, web3_token)
         .await
         .unwrap();
-    return HttpResponse::Ok().body(response);
+    return Ok(HttpResponse::Ok().body(response));
 }
 
 #[post("/key/request")]
-async fn key_request(req_body: String) -> impl Responder {
+async fn key_request(req_body: String) -> Result<HttpResponse, Error> {
     let request: request_key::KeyRequest = serde_json::from_str(&req_body).unwrap();
-    let secrets = get_secrets();
-    if secrets.is_err() {
-        return HttpResponse::InternalServerError().body("Missing secret environment variable");
-    }
-    let (orion_string, _) = secrets.unwrap();
+    let (orion_string, _) = get_secrets().map_err(var_error_map)?;
     let key_response: request_key::KeyResponse =
         request_key::request(request, orion_string).await.unwrap();
     let response = serde_json::to_string(&key_response).unwrap();
-    return HttpResponse::Ok().body(response);
+    return Ok(HttpResponse::Ok().body(response));
 }
 
 #[actix_web::main]

@@ -2,7 +2,7 @@ use std::env;
 use std::env::VarError;
 
 const ORION_SECRET: &str = "ORION_SECRET";
-const WEB3_TOKEN: &str = "WEB3";
+const WEB3_TOKEN: &str = "WEB3s";
 
 pub fn get_secrets() -> core::result::Result<(String, String), VarError> {
    let orion_string = env::var(ORION_SECRET);
