@@ -1,11 +1,13 @@
-FROM rust:1.58.1 as build
-ENV PKG_CONFIG_ALLOW_CROSS=1
+FROM rust:latest as rust-env
+WORKDIR /app
+COPY server/. /app
+RUN cargo build --release
 
-WORKDIR /usr/src/server
-COPY server/. .
+# TODO: ADD NPM DEPENDENCIES
 
-RUN cargo install --path .
-
-FROM gcr.io/distroless/cc-debian10
-COPY --from=build /usr/local/cargo/bin/server /usr/local/bin/server
-CMD ["/usr/local/bin/server"]
+FROM debian:buster-slim
+RUN apt-get update && apt-get install libssl-dev
+# RUN npm install --global yarn
+# RUN npm install --global yarn
+COPY --from=rust-env /app/target/release/server /
+CMD ["/server"]

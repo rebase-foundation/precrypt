@@ -33,7 +33,7 @@ const MEM_SIZE: usize = 50000000;
 async fn file_store(mut payload: Multipart) -> impl Responder {
     // UUID for request
     let request_uuid: String = format!("store-{}", Uuid::new_v4().to_simple().to_string());
-    fs::create_dir(&request_uuid).unwrap();
+    fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
     let plaintext_path = build_path(PathBuilder::Plaintext, &request_uuid);
 
     // Write file to disk using multipart stream
@@ -106,7 +106,7 @@ async fn file_request(req_body: String) -> impl Responder {
     let req: request_file::FileRequest = serde_json::from_str(&req_body).unwrap();
     // UUID for request
     let request_uuid: String = format!("request-{}", Uuid::new_v4().to_simple().to_string());
-    fs::create_dir(&request_uuid).unwrap();
+    fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
 
     // Spawn the worker for request
     let orion_string = env::var("ORION_SECRET").unwrap();
