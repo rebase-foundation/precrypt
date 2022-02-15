@@ -3,7 +3,7 @@ use std::process::Command;
 #[derive(Debug, Clone)]
 struct CommandError;
 
-pub fn run_command(cmd: &str) -> std::io::Result<std::process::Output> {
+pub fn run_command(cmd: String) -> std::io::Result<std::process::Output> {
    let result = Command::new("sh")
       .arg("-c")
       .arg(cmd)
