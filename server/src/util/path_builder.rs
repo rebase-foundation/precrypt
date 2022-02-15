@@ -59,6 +59,5 @@ pub fn build_path(path: PathBuilder, uuid: &String) -> String {
    };
    let volume_dir = env::var("DATA").unwrap();
    let full_path = format!("{}/{}", volume_dir, rel_path);
-   println!("{}", &full_path);
    return full_path;
 }
