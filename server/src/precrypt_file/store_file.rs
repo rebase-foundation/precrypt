@@ -5,12 +5,12 @@ use serde_json::{json, Value};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 use umbral_pre::*;
 
 use crate::precrypt_key::*;
 
 use crate::util::path_builder::{build_path, PathBuilder};
+use crate::util::command::{run_command};
 
 pub async fn store(
    request_uuid: String,
@@ -42,32 +42,17 @@ pub async fn store(
    // TODO: CHECK STD_ERRS FROM COMMANDS
    println!("Prepping cipher");
    let cipher_car_path = build_path(PathBuilder::CipherCar, &request_uuid);
-   let pack_command = format!(
+   run_command(format!(
       "npx ipfs-car --wrapWithDirectory false --pack {} --output {}",
       cipher_file_path, cipher_car_path
-   );
-   Command::new("sh")
-      .arg("-c")
-      .arg(pack_command)
-      .output()
-      .expect("failed to execute process");
-   let carbites_command = format!(
+   )).unwrap();
+   run_command(format!(
       "npx carbites-cli split --size 90MB --strategy treewalk {}",
       cipher_car_path
-   );
-   Command::new("sh")
-      .arg("-c")
-      .arg(carbites_command)
-      .output()
-      .expect("failed to execute process");
+   )).unwrap();
 
    // Get root cid for the cars
-   let get_cid_command = format!("npx ipfs-car --list-roots {}", cipher_car_path);
-   let output = Command::new("sh")
-      .arg("-c")
-      .arg(get_cid_command)
-      .output()
-      .expect("failed to execute process");
+   let output = run_command(format!("npx ipfs-car --list-roots {}", cipher_car_path)).unwrap();
    let file_root_cid = std::str::from_utf8(&output.stdout).unwrap().replace("\n", "");
    println!("Root CID: {}", file_root_cid);
 

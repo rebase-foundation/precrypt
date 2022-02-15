@@ -7,12 +7,12 @@ use serde::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 use crate::precrypt_key::*;
 use umbral_pre::*;
 
 use crate::util::path_builder::{build_path, PathBuilder};
+use crate::util::command::{run_command};
 
 #[derive(Serialize, Deserialize)]
 pub struct FileRequest {
@@ -72,15 +72,10 @@ pub async fn request(
 
    println!("Unpacking cipher");
    let cipher_file_path = build_path(PathBuilder::Cipher, &request_uuid);
-   let pack_command = format!(
+   run_command(format!(
       "npx ipfs-car --unpack {} --output {}",
       &cipher_car_path, cipher_file_path
-   );
-   Command::new("sh")
-      .arg("-c")
-      .arg(pack_command)
-      .output()
-      .expect("failed to execute process");
+   )).unwrap();
 
    // Decrypt file with key
    // Write file CID and key CID to json in the folder with an expiration time
