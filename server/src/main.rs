@@ -3,7 +3,7 @@ use actix_web::HttpRequest;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
-use actix_web::{get, post, App, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, App, Error, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use futures_util::never::Never;
 use futures_util::stream::poll_fn;
@@ -25,6 +25,7 @@ use crate::precrypt_file::*;
 
 mod util;
 use crate::util::path_builder::{build_path, PathBuilder};
+use crate::util::get_secrets::get_secrets;
 
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
@@ -33,7 +34,7 @@ const MEM_SIZE: usize = 50000000;
 async fn file_store(mut payload: Multipart) -> impl Responder {
     // UUID for request
     let request_uuid: String = format!("store-{}", Uuid::new_v4().to_simple().to_string());
-    fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
+    fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid))?;
     let plaintext_path = build_path(PathBuilder::Plaintext, &request_uuid);
 
     // Write file to disk using multipart stream
@@ -77,14 +78,22 @@ async fn file_store(mut payload: Multipart) -> impl Responder {
                     out.write(&chunk.unwrap()).unwrap();
                 }
             }
-            _ => panic!("Invalid form data"),
+            _ => {
+                return HttpResponse::BadRequest().body("Too many fields");
+            }
         }
     }
 
     let request_uuid_c = request_uuid.clone();
-    let orion_string = env::var("ORION_SECRET").unwrap();
-    let web3_token = env::var("WEB3").unwrap();
+    let secrets = get_secrets();
+    if secrets.is_err() {
+        return HttpResponse::InternalServerError().body("Missing secret environment variable");
+    }
+    let (orion_string, web3_token) = secrets.unwrap();
     let mint = mint.unwrap().clone();
+    if file_extension.is_none() {
+        return HttpResponse::BadRequest().body("Invalid file field provided");
+    }
     let file_extension = file_extension.unwrap().clone();
     actix_web::rt::spawn(async move {
         store_file::store(
@@ -109,8 +118,11 @@ async fn file_request(req_body: String) -> impl Responder {
     fs::create_dir(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
 
     // Spawn the worker for request
-    let orion_string = env::var("ORION_SECRET").unwrap();
-    let web3_token = env::var("WEB3").unwrap();
+    let secrets = get_secrets();
+    if secrets.is_err() {
+        return HttpResponse::InternalServerError().body("Missing secret environment variable");
+    }
+    let (orion_string, web3_token) = secrets.unwrap();
     let request_uuid_c = request_uuid.clone();
     actix_web::rt::spawn(async move {
         request_file::request(req, request_uuid_c, orion_string, web3_token, THREADS).await;
@@ -218,8 +230,11 @@ async fn keygen() -> impl Responder {
 #[post("/key/store")]
 async fn key_store(req_body: String) -> impl Responder {
     let request: store_key::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
-    let orion_string = env::var("ORION_SECRET").unwrap();
-    let web3_token = env::var("WEB3").unwrap();
+    let secrets = get_secrets();
+    if secrets.is_err() {
+        return HttpResponse::InternalServerError().body("Missing secret environment variable");
+    }
+    let (orion_string, web3_token) = secrets.unwrap();
     let response = store_key::store(request, orion_string, web3_token)
         .await
         .unwrap();
@@ -229,9 +244,13 @@ async fn key_store(req_body: String) -> impl Responder {
 #[post("/key/request")]
 async fn key_request(req_body: String) -> impl Responder {
     let request: request_key::KeyRequest = serde_json::from_str(&req_body).unwrap();
-    let secret_string = env::var("ORION_SECRET").unwrap();
+    let secrets = get_secrets();
+    if secrets.is_err() {
+        return HttpResponse::InternalServerError().body("Missing secret environment variable");
+    }
+    let (orion_string, _) = secrets.unwrap();
     let key_response: request_key::KeyResponse =
-        request_key::request(request, secret_string).await.unwrap();
+        request_key::request(request, orion_string).await.unwrap();
     let response = serde_json::to_string(&key_response).unwrap();
     return HttpResponse::Ok().body(response);
 }
