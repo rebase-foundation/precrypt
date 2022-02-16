@@ -1,3 +1,4 @@
+use glob::glob;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
@@ -28,6 +29,9 @@ mod util;
 use crate::util::error_maps::var_error_map;
 use crate::util::get_secrets::get_secrets;
 use crate::util::path_builder::{build_path, PathBuilder};
+
+mod index;
+use crate::index::html;
 
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
@@ -147,7 +151,9 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             return HttpResponse::Ok().json(json);
         }
         "request" => {
-            let path = build_path(PathBuilder::RequestResultGlob, &uuid);
+            let result_dir_path = build_path(PathBuilder::RequestResultDir, &uuid);
+            let pattern = format!("{}/{}.*", result_dir_path, uuid);
+            let path = glob(&pattern).unwrap().next().unwrap().unwrap();
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
@@ -248,6 +254,11 @@ async fn key_request(req_body: String) -> Result<HttpResponse, Error> {
     return Ok(HttpResponse::Ok().body(response));
 }
 
+#[get("/")]
+async fn home() -> impl Responder {
+    return HttpResponse::Ok().content_type("text/html").body(html());
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -271,6 +282,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
+            .service(home)
             .service(key_store)
             .service(key_request)
             .service(keygen)

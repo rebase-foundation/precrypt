@@ -1,7 +1,5 @@
-use actix_web::client::Client;
-use glob::glob;
 use precrypt::{precrypt, RecryptionKeys};
-use serde_json::{json, Value};
+use serde_json::json;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
@@ -10,7 +8,8 @@ use umbral_pre::*;
 use crate::precrypt_key::*;
 
 use crate::util::path_builder::{build_path, PathBuilder};
-use crate::util::command::{run_command};
+use crate::util::command::run_command;
+use crate::util::car::upload_cars;
 
 pub async fn store(
    request_uuid: String,
@@ -39,7 +38,6 @@ pub async fn store(
    .unwrap();
 
    // Prep encrypted file for IPFS
-   // TODO: CHECK STD_ERRS FROM COMMANDS
    println!("Prepping cipher");
    let cipher_car_path = build_path(PathBuilder::CipherCar, &request_uuid);
    run_command(format!(
@@ -47,39 +45,13 @@ pub async fn store(
       cipher_file_path, cipher_car_path
    )).unwrap();
    run_command(format!(
-      "carbites-cli split --size 90MB --strategy treewalk {}",
+      "carbites split --size 90MB --strategy treewalk {}",
       cipher_car_path
    )).unwrap();
 
-   // Get root cid for the cars
-   let output = run_command(format!("ipfs-car --list-roots {}", cipher_car_path)).unwrap();
-   let file_root_cid = std::str::from_utf8(&output.stdout).unwrap().replace("\n", "");
-   println!("Root CID: {}", file_root_cid);
-
    // Upload encrypted file to IPFS
    println!("Storing cipher...");
-   let pattern = build_path(PathBuilder::CarPattern, &request_uuid);
-   for entry in glob(&pattern).expect("Failed to read glob pattern") {
-      let path = entry.unwrap();
-      println!("{:?}", path);
-      let cipher_bytes = fs::read(path).unwrap();
-      let body = actix_web::web::Bytes::from_iter(cipher_bytes);
-      // TODO: Resilient client with retries
-      let client = Client::default();
-      let file_response = client
-         .post("https://api.web3.storage/car")
-         .header("authorization", format!("Bearer {}", web3_token))
-         .timeout(std::time::Duration::new(120, 0))
-         .send_body(body)
-         .await;
-      println!("{:?}", file_response);
-      let file_response_str = file_response.unwrap().body().await.unwrap();
-      let json: Value = serde_json::from_slice(&file_response_str).unwrap();
-      if file_root_cid.eq(&json["cid"].to_string()) {
-         let msg = format!("Received CID different from root: {}", json["cid"].to_string());
-         panic!("{}", msg);
-      }
-    }
+   let file_root_cid = upload_cars(&request_uuid).await;
 
    // Store Key
    println!("Storing key...");

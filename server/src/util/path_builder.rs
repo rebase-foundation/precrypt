@@ -1,4 +1,3 @@
-use glob::glob;
 use std::env;
 
 pub enum PathBuilder {
@@ -12,8 +11,7 @@ pub enum PathBuilder {
    StoreResultDir,
    StoreResult,
    RequestResultDir,
-   RequestResult,
-   RequestResultGlob
+   RequestResult
 }
 
 pub fn build_path(path: PathBuilder, uuid: &String) -> String {
@@ -50,11 +48,6 @@ pub fn build_path(path: PathBuilder, uuid: &String) -> String {
       }
       PathBuilder::RequestResultDir => {
          "request_results".to_string()
-      }
-      PathBuilder::RequestResultGlob => {
-         let pattern = format!("request_results/{}.*", uuid);
-         let path = glob(&pattern).unwrap().next().unwrap().unwrap();
-         path.to_str().unwrap().to_string()
       }
    };
    let volume_dir = env::var("DATA").unwrap();

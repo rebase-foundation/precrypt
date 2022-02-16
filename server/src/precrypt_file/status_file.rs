@@ -1,3 +1,4 @@
+use glob::glob;
 use std::path::Path;
 use crate::util::path_builder::{build_path, PathBuilder};
 
@@ -63,7 +64,9 @@ pub fn request_status(uuid: String) -> RequestStatus {
          return RequestStatus::DecryptingCipher;
       }
    }
-   let path = build_path(PathBuilder::RequestResultGlob, &uuid);
+   let result_dir_path = build_path(PathBuilder::RequestResultDir, &uuid);
+   let pattern = format!("{}/{}.*", result_dir_path, uuid);
+   let path = glob(&pattern).unwrap().next().unwrap().unwrap();
    let has_result = Path::new(&path).is_file();
    if has_result {
       return RequestStatus::Ready;
