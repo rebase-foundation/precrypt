@@ -8,7 +8,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@solana/spl-token": "^0.1.8",
     "@solana/wallet-adapter-base": "^0.7.1",
     "@solana/wallet-adapter-react": "^0.13.1",
     "@solana/wallet-adapter-react-ui": "^0.6.1",
