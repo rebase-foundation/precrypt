@@ -8,7 +8,7 @@ import { useLocalStorage } from '../lib/useLocalStorage';
 
 const Home: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [resultMessage, setResultMessage] = useLocalStorage('result', '');
+  const [resultDiv, setResultDiv] = useState((<div></div>));
   const [proxyEndpoint, setProxyEndpoint] = useLocalStorage('endpoint', 'https://precrypt.org');
   const [requestType, setRequestType] = useLocalStorage('type', '');
   const { publicKey, signMessage } = useWallet();
@@ -24,9 +24,12 @@ const Home: NextPage = () => {
   const [precryptPubkey, setPrecryptPubkey] = useLocalStorage('precryptPubkey', '');
   const [decryptKey, setDecryptKey] = useLocalStorage('decryptKey', '');
 
+  // Store File Params
+  const [uploadFile, setUploadFile] = useState(null);
+
   async function onStoreKey() {
     setIsLoading(true);
-
+    setResultDiv((<div></div>));
     const body = JSON.stringify({
       "recryption_keys": JSON.parse(recryptionKeyString),
       "mint": mintAddress,
@@ -45,18 +48,33 @@ const Home: NextPage = () => {
       const json = await resp.json();
       console.log(json);
       let cid = json['cid'];
-      setResultMessage(`Successfully stored key at CID: ${cid}`);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-green-200'>
+          <p className='font-bold'>Success</p>
+          <p>
+            Successfully stored key at CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + cid} className='text-blue-500 underline'>{cid}</a>
+          </p>
+        </div>
+      ));
+      setKeyCID(keyCID);
     } catch (error) {
-      console.log(error);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-red-200'>
+          <p className='font-bold'>Failure</p>
+          <p>
+            Error storing key: {error}
+          </p>
+        </div>
+      ));
     }
     setIsLoading(false);
   }
 
   async function onRequestKey() {
     setDecryptKey('');
-    setIsLoading(true);
     if (!keyCID || !publicKey || !signMessage) return;
-    
+    setIsLoading(true);
+
     // Create signature with browser wallet
     const message = new TextEncoder().encode('precrypt');
     const signature = await signMessage(message);
@@ -79,9 +97,27 @@ const Home: NextPage = () => {
       const json = await resp.json();
       console.log(json);
       setDecryptKey(json['decryption_keys']);
-      setResultMessage(`Successfully retrieved key with CID: ${keyCID}. You can now decrypt file at CID: ${json['file_cid']} with extension: ${json['file_extension']}`);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-green-200'>
+          <p className='font-bold'>Success</p>
+          <p>
+            Successfully retrieved key with CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + keyCID} className='text-blue-500 underline'>{keyCID}</a>. 
+          </p>
+          <p>
+            You can now decrypt file at CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + fileCID} className='text-blue-500 underline'>{fileCID}</a> with extension: {json['file_extension']}
+          </p>
+        </div>
+      ));
     } catch (error) {
       console.log(error);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-red-200'>
+          <p className='font-bold'>Failure</p>
+          <p>
+            Error storing key: {error}
+          </p>
+        </div>
+      ));
     }
     setIsLoading(false);
   }
@@ -94,7 +130,57 @@ const Home: NextPage = () => {
     document.body.appendChild(elem);
     elem.click();
     document.body.removeChild(elem);
- }
+  }
+
+  async function onStoreFile() {
+    if (!mintAddress || !uploadFile) return;
+    setIsLoading(true);
+    const formData = new FormData;
+    formData.append('mint', mintAddress);
+    formData.append('', uploadFile as Blob);
+    console.log(formData);
+    try {
+      const resp = await fetch(`${proxyEndpoint}/file/store`, {
+        method: 'POST',
+        body: formData
+      });
+      const json = await resp.json();
+      console.log(json);
+    } catch (error) {
+      console.log(error);
+    }
+    setIsLoading(false);
+  }
+
+  async function onRequestFile() {
+    if (!keyCID || !publicKey || !signMessage) return;
+    setIsLoading(true);
+
+    // Create signature with browser wallet
+    const message = new TextEncoder().encode('precrypt');
+    const signature = await signMessage(message);
+
+    let body = JSON.stringify({
+      'key_cid': keyCID,
+      'sol_pubkey': Array.from(publicKey.toBytes()),
+      'sol_signed_message': Array.from(signature)
+    });
+    console.log(body);
+    try {
+      const resp = await fetch(`${proxyEndpoint}/file/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: body
+      });
+      const json = await resp.json();
+      console.log(json);
+    } catch (error) {
+      console.log(error);
+    }
+    setIsLoading(false);
+  }
 
   return (
     <div>
@@ -123,8 +209,28 @@ const Home: NextPage = () => {
           <br></br>
           <input type={"radio"} value="file" name='file' checked={requestType == 'file'} onChange={(e) => setRequestType(e.target.value)}></input> File
         </div>
-        <div className='flex flex-row gap-2 py-4'>
-          <div className='w-1/2 border-2 p-2'>
+
+        {/* KEY NOTICE */}
+        {requestType === 'key' && <div className='my-5 border border-black p-2 rounded bg-green-200'>
+          <p className='font-bold'>Using the CLI</p>
+          <p>
+            To locally encrypt your file and generate keys, you will need the Precrypt CLI. You can go to the <a target={"_blank"} href="https://crates.io/crates/precrypt" className='text-blue-500 underline'>
+              Precrypt crates.io</a> page for instructions on how to install and use the CLI.
+          </p>
+        </div>}
+
+        {/* FILE NOTICE */}
+        {requestType === 'file' && <div className='my-5 border border-black p-2 rounded bg-red-200'>
+          <p className='font-bold'>Warning about uploading files</p>
+          <p>
+            A primary advantage of proxy based re-encryption is that the proxy does not need to see files. Precrypt offers a file based flow for ease of use, but it is <b>less secure and reliable. </b>
+            <a className='text-blue-500 underline' target={"_blank"} href='https://precrypt.org'>Learn more</a>
+          </p>
+        </div>}
+
+        {/* INPUTS */}
+        {requestType === 'key' && <div className='flex flex-row gap-2'>
+          <div className='w-1/2 border-2 rounded p-2'>
             <div className='border-b-2 text-xl text-center font-bold'>Store</div>
             Recryption Key: <input
               type={'file'}
@@ -184,7 +290,7 @@ const Home: NextPage = () => {
             <br></br>
             <button onClick={onStoreKey} disabled={isLoading || !recryptionKeyString || !mintAddress || !fileCID || !fileExtension} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
           </div>
-          <div className='w-1/2 border-2 p-2'>
+          <div className='w-1/2 border-2 rounded p-2'>
             <div className='border-b-2 text-xl text-center font-bold'>Request</div>
             <WalletMultiButton />
             <br></br>
@@ -209,10 +315,55 @@ const Home: NextPage = () => {
             </label>
             <button onClick={onRequestKey} disabled={isLoading || !precryptPubkey || !keyCID || !publicKey} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
           </div>
-        </div>
-        {resultMessage && <div>
-          {resultMessage}
         </div>}
+
+        {requestType === 'file' && <div className='flex flex-row gap-2'>
+          <div className='w-1/2 border-2 rounded p-2'>
+            <div className='border-b-2 text-xl text-center font-bold'>Store</div>
+            Plaintext Key: <input
+              type={'file'}
+              onChange={async (e: any) => {
+                const file = e.target.files[0];
+                if (!file) {
+                  setUploadFile(null);
+                  return
+                }
+                setUploadFile(file);
+              }}
+            >
+            </input>
+            <br></br>
+            <label>
+              Mint Address:
+              <input
+                className='border ml-2'
+                type={'text'}
+                onChange={(e) => setMintAddress(e.target.value)}
+                value={mintAddress}
+              />
+            </label>
+            <button onClick={onStoreFile} disabled={isLoading || !mintAddress || !uploadFile} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
+          </div>
+          <div className='w-1/2 border-2 rounded p-2'>
+            <div className='border-b-2 text-xl text-center font-bold'>Request</div>
+            <WalletMultiButton />
+            <label>
+              Key CID:
+              <input
+                className='border ml-2'
+                type={'text'}
+                onChange={(e) => setKeyCID(e.target.value)}
+                value={keyCID}
+              />
+            </label>
+            <br></br>
+            <button onClick={onRequestFile} disabled={isLoading || !keyCID} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
+          </div>
+        </div>}
+        {resultDiv && <div>
+          {resultDiv}
+        </div>}
+        
         {decryptKey && <button onClick={onDownloadKey} className='border border-black rounded bg-gray-300 px-2 mt-3 mx-auto'>Download Decryption Key</button>}
       </div>
     </div>
