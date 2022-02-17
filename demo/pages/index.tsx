@@ -58,14 +58,16 @@ const Home: NextPage = () => {
       ));
       setKeyCID(keyCID);
     } catch (error) {
-      setResultDiv((
-        <div className='my-5 border border-black p-2 rounded bg-red-200'>
-          <p className='font-bold'>Failure</p>
-          <p>
-            Error storing key: {error}
-          </p>
-        </div>
-      ));
+      if (error instanceof Error) {
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-red-200'>
+            <p className='font-bold'>Failure</p>
+            <p>
+              Error storing file: {error.toString()}
+            </p>
+          </div>
+        ));
+      }
     }
     setIsLoading(false);
   }
@@ -101,23 +103,25 @@ const Home: NextPage = () => {
         <div className='my-5 border border-black p-2 rounded bg-green-200'>
           <p className='font-bold'>Success</p>
           <p>
-            Successfully retrieved key with CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + keyCID} className='text-blue-500 underline'>{keyCID}</a>. 
+            Successfully retrieved key with CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + keyCID} className='text-blue-500 underline'>{keyCID}</a>
           </p>
           <p>
             You can now decrypt file at CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + fileCID} className='text-blue-500 underline'>{fileCID}</a> with extension: {json['file_extension']}
           </p>
+          {decryptKey && <button onClick={onDownloadKey} className='border border-black rounded bg-gray-300 px-2 mt-3 mx-auto'>Download Decryption Key</button>}
         </div>
       ));
     } catch (error) {
-      console.log(error);
-      setResultDiv((
-        <div className='my-5 border border-black p-2 rounded bg-red-200'>
-          <p className='font-bold'>Failure</p>
-          <p>
-            Error storing key: {error}
-          </p>
-        </div>
-      ));
+      if (error instanceof Error) {
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-red-200'>
+            <p className='font-bold'>Failure</p>
+            <p>
+              Error storing file: {error.toString()}
+            </p>
+          </div>
+        ));
+      }
     }
     setIsLoading(false);
   }
@@ -146,8 +150,71 @@ const Home: NextPage = () => {
       });
       const json = await resp.json();
       console.log(json);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-gray-100'>
+          <p className='font-bold'>Loading</p>
+          <p>
+            Request is being processed. Task uuid: {json['uuid']}
+          </p>
+        </div>
+      ));
+
+      let pending = true;
+      while (pending) {
+        const resp = await fetch(`${proxyEndpoint}/file/status/${json['uuid']}`, {
+          method: 'GET'
+        });
+        const status = await resp.text();
+        console.log(status);
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-gray-100'>
+            <p className='font-bold'>Loading</p>
+            <p>
+              Request is being processed. Task uuid: {json['uuid']}
+            </p>
+            <p>
+              Status: {status}
+            </p>
+          </div>
+        ));
+        await new Promise(r => setTimeout(r, 1000));
+        if (status === "Ready") {
+          pending = false;
+          const resp = await fetch(`${proxyEndpoint}/file/${json['uuid']}`, {
+            method: 'GET'
+          });
+          const result_json = await resp.json();
+          console.log(result_json);
+          setResultDiv((
+            <div className='my-5 border border-black p-2 rounded bg-green-100'>
+              <p className='font-bold'>Complete</p>
+              <p>
+                Request is being processed. Task uuid: {json['uuid']}
+              </p>
+              <p>
+                Status: {status}
+              </p>
+              <p>
+                Key CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + result_json['key_cid']} className='text-blue-500 underline'>{result_json['key_cid']}</a>
+              </p>
+              <p>
+                File CID: <a target={"_blank"} href={"https:/ipfs.io/ipfs/" + result_json['file_cid']} className='text-blue-500 underline'>{result_json['file_cid']}</a>
+              </p>
+            </div>
+          ));
+        }
+      }
     } catch (error) {
-      console.log(error);
+      if (error instanceof Error) {
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-red-200'>
+            <p className='font-bold'>Failure</p>
+            <p>
+              Error storing file: {error.toString()}
+            </p>
+          </div>
+        ));
+      }
     }
     setIsLoading(false);
   }
@@ -176,8 +243,61 @@ const Home: NextPage = () => {
       });
       const json = await resp.json();
       console.log(json);
+      setResultDiv((
+        <div className='my-5 border border-black p-2 rounded bg-gray-100'>
+          <p className='font-bold'>Loading</p>
+          <p>
+            Request is being processed. Task uuid: {json['uuid']}
+          </p>
+        </div>
+      ));
+
+      let pending = true;
+      while (pending) {
+        const resp = await fetch(`${proxyEndpoint}/file/status/${json['uuid']}`, {
+          method: 'GET'
+        });
+        const status = await resp.text();
+        console.log(status);
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-gray-100'>
+            <p className='font-bold'>Loading</p>
+            <p>
+              Request is being processed. Task uuid: {json['uuid']}
+            </p>
+            <p>
+              Status: {status}
+            </p>
+          </div>
+        ));
+        await new Promise(r => setTimeout(r, 1000));
+        if (status === "Ready") {
+          pending = false;
+          setResultDiv((
+            <div className='my-5 border border-black p-2 rounded bg-green-100'>
+              <p className='font-bold'>Complete</p>
+              <p>
+                Request is being processed. Task uuid: {json['uuid']}
+              </p>
+              <p>
+                Status: {status}
+              </p>
+              <a target={"_blank"} href={`${proxyEndpoint}/file/${json['uuid']}`} className='text-blue-500 underline'>One time download link</a>
+            </div>
+          ));
+        }
+      }
     } catch (error) {
-      console.log(error);
+      if (error instanceof Error) {
+        setResultDiv((
+          <div className='my-5 border border-black p-2 rounded bg-red-200'>
+            <p className='font-bold'>Failure</p>
+            <p>
+              Error storing file: {error.toString()}
+            </p>
+          </div>
+        ));
+      }
     }
     setIsLoading(false);
   }
@@ -320,7 +440,7 @@ const Home: NextPage = () => {
         {requestType === 'file' && <div className='flex flex-row gap-2'>
           <div className='w-1/2 border-2 rounded p-2'>
             <div className='border-b-2 text-xl text-center font-bold'>Store</div>
-            Plaintext Key: <input
+            Plaintext File: <input
               type={'file'}
               onChange={async (e: any) => {
                 const file = e.target.files[0];
@@ -363,8 +483,6 @@ const Home: NextPage = () => {
         {resultDiv && <div>
           {resultDiv}
         </div>}
-        
-        {decryptKey && <button onClick={onDownloadKey} className='border border-black rounded bg-gray-300 px-2 mt-3 mx-auto'>Download Decryption Key</button>}
       </div>
     </div>
   );

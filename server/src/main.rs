@@ -10,7 +10,7 @@ use futures_util::never::Never;
 use futures_util::stream::poll_fn;
 use futures_util::stream::StreamExt;
 use futures_util::task::Poll;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::env;
 use std::fs;
 use std::fs::File;
@@ -114,7 +114,9 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
         )
         .await;
     });
-    return Ok(HttpResponse::Ok().body(request_uuid));
+    return Ok(HttpResponse::Ok().json(&json!({
+        "uuid": request_uuid
+    })));
 }
 
 #[post("/file/request")]
@@ -131,8 +133,10 @@ async fn file_request(req_body: String) -> Result<HttpResponse, Error> {
         request_file::request(req, request_uuid_c, orion_string, web3_token, THREADS).await;
     });
 
-    // Get the uuid
-    return Ok(HttpResponse::Ok().body(request_uuid));
+    // Return the uuid
+    return Ok(HttpResponse::Ok().json(&json!({
+        "uuid": request_uuid
+    })));
 }
 
 #[get("file/{uuid}")]
