@@ -35,14 +35,14 @@ pub fn html() -> String {
             <a class="text-blue-500 underline" href="https://strangemood.org">Strangemood</a> can store encrypted files on IPFS that are only decryptable by purchasers of the game. 
          </p>
          <div class="pt-3 flex flex-row gap-5 flex-wrap">
+            <a target="_blank" href="https://demo.precrypt.org">
+               <button class="border-4 lg:border-2 rounded p-4 lg:p-2 font-bold text-4xl lg:text-xl">
+                  Play with the demo
+               </button>
+            </a>
             <button class="border-4 lg:border-2 rounded p-4 lg:p-2 font-bold text-4xl lg:text-xl">
                Read the docs (soon)
             </button>
-            <a target="_blank" href="https://github.com/rebase-foundation/precrypt">
-               <button class="border-4 lg:border-2 rounded p-4 lg:p-2 font-bold text-4xl lg:text-xl">
-                  Contribute
-               </button>
-            </a>
          </div>
          
          <!-- How it works -->
