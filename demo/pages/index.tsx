@@ -177,7 +177,7 @@ const Home: NextPage = () => {
             </p>
           </div>
         ));
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 2500));
         if (status === "Ready") {
           pending = false;
           const resp = await fetch(`${proxyEndpoint}/file/${json['uuid']}`, {
@@ -270,7 +270,7 @@ const Home: NextPage = () => {
             </p>
           </div>
         ));
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 2500));
         if (status === "Ready") {
           pending = false;
           setResultDiv((
@@ -321,13 +321,16 @@ const Home: NextPage = () => {
           </div>
         </div>
       </div>
-      <div className='m-auto h-full px-4 py-4 max-w-2xl items-center text-left'>
+      <div className='m-auto h-full px-4 py-4 max-w-4xl items-center text-left'>
         <div className='my-auto text-xl font-bold'>Chose your request type:</div>
-        <div>
+        <div className='flex flex-col'>
           <p className='py-2'>There are two ways to use precrypt. You can to encrypt/decrypt the file locally and have the proxy store/generate a <b>key</b>. You can also upload/request a <b>file</b> and have the encryption/decryption take place on the server.</p>
-          <input type={"radio"} value="key" name='key' checked={requestType == 'key'} onChange={(e) => setRequestType(e.target.value)}></input> Key (recommended)
-          <br></br>
-          <input type={"radio"} value="file" name='file' checked={requestType == 'file'} onChange={(e) => setRequestType(e.target.value)}></input> File
+          <label>
+            <input type={"radio"} value="key" name='key' checked={requestType == 'key'} onChange={(e) => setRequestType(e.target.value)}></input> Key (recommended)
+          </label>
+          <label>
+            <input type={"radio"} value="file" name='file' checked={requestType == 'file'} onChange={(e) => setRequestType(e.target.value)}></input> File
+          </label>
         </div>
 
         {/* KEY NOTICE */}
@@ -350,34 +353,37 @@ const Home: NextPage = () => {
 
         {/* INPUTS */}
         {requestType === 'key' && <div className='flex flex-row gap-2'>
-          <div className='w-1/2 border-2 rounded p-2'>
+          <div className='w-1/2 border-2 rounded p-2 flex flex-col gap-3'>
             <div className='border-b-2 text-xl text-center font-bold'>Store</div>
-            Recryption Key: <input
-              type={'file'}
-              onChange={async (e: any) => {
-                const file = e.target.files[0];
-                if (!file) {
-                  setRecryptionKeyString('');
-                  return
-                }
-                try {
-                  var reader = new FileReader();
-                  reader.addEventListener('load', function (e) {
-                    if (!e.target) {
-                      console.log("parse error")
-                      return;
-                    }
-                    console.log(e.target.result);
-                    setRecryptionKeyString(e.target.result as string);
-                  });
-                  reader.readAsBinaryString(file);
-                } catch (error) {
-                  console.log('Error parsing file: ', error);
-                }
-              }}
-            >
-            </input>
-            <br></br>
+            <label>
+              Recryption Key: 
+              <input
+                type={'file'}
+                onChange={async (e: any) => {
+                  const file = e.target.files[0];
+                  if (!file) {
+                    setRecryptionKeyString('');
+                    return
+                  }
+                  try {
+                    var reader = new FileReader();
+                    reader.addEventListener('load', function (e) {
+                      if (!e.target) {
+                        console.log("parse error")
+                        return;
+                      }
+                      console.log(e.target.result);
+                      setRecryptionKeyString(e.target.result as string);
+                    });
+                    reader.readAsBinaryString(file);
+                  } catch (error) {
+                    console.log('Error parsing file: ', error);
+                  }
+                }}
+              >
+              </input>
+            </label>
+            
             <label>
               Mint Address:
               <input
@@ -387,7 +393,7 @@ const Home: NextPage = () => {
                 value={mintAddress}
               />
             </label>
-            <br></br>
+            
             <label>
               File CID:
               <input
@@ -397,7 +403,7 @@ const Home: NextPage = () => {
                 value={fileCID}
               />
             </label>
-            <br></br>
+            
             <label>
               File Extension:
               <input
@@ -407,15 +413,15 @@ const Home: NextPage = () => {
                 value={fileExtension}
               />
             </label>
-            <br></br>
+            
             <button onClick={onStoreKey} disabled={isLoading || !recryptionKeyString || !mintAddress || !fileCID || !fileExtension} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
           </div>
-          <div className='w-1/2 border-2 rounded p-2'>
+          <div className='w-1/2 border-2 rounded p-2 flex flex-col gap-3'>
             <div className='border-b-2 text-xl text-center font-bold'>Request</div>
             <WalletMultiButton />
-            <br></br>
+            
             <label>
-              Pubkey:
+              Precrypt Pubkey:
               <input
                 className='border ml-2'
                 type={'text'}
@@ -423,7 +429,7 @@ const Home: NextPage = () => {
                 value={precryptPubkey}
               />
             </label>
-            <br></br>
+            
             <label>
               Key CID:
               <input
@@ -438,21 +444,23 @@ const Home: NextPage = () => {
         </div>}
 
         {requestType === 'file' && <div className='flex flex-row gap-2'>
-          <div className='w-1/2 border-2 rounded p-2'>
+          <div className='w-1/2 border-2 rounded p-2 flex flex-col gap-3'>
             <div className='border-b-2 text-xl text-center font-bold'>Store</div>
-            Plaintext File: <input
-              type={'file'}
-              onChange={async (e: any) => {
-                const file = e.target.files[0];
-                if (!file) {
-                  setUploadFile(null);
-                  return
-                }
-                setUploadFile(file);
-              }}
-            >
-            </input>
-            <br></br>
+            <label>
+              Plaintext File: <input
+                type={'file'}
+                onChange={async (e: any) => {
+                  const file = e.target.files[0];
+                  if (!file) {
+                    setUploadFile(null);
+                    return
+                  }
+                  setUploadFile(file);
+                }}
+              >
+              </input>
+            </label>
+            
             <label>
               Mint Address:
               <input
@@ -464,7 +472,7 @@ const Home: NextPage = () => {
             </label>
             <button onClick={onStoreFile} disabled={isLoading || !mintAddress || !uploadFile} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
           </div>
-          <div className='w-1/2 border-2 rounded p-2'>
+          <div className='w-1/2 border-2 rounded p-2 flex flex-col gap-3'>
             <div className='border-b-2 text-xl text-center font-bold'>Request</div>
             <WalletMultiButton />
             <label>
@@ -476,10 +484,22 @@ const Home: NextPage = () => {
                 value={keyCID}
               />
             </label>
-            <br></br>
+            
             <button onClick={onRequestFile} disabled={isLoading || !keyCID} className='border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20'>Submit</button>
           </div>
         </div>}
+        <div className='mt-5'>
+          <p className='underline'>Legend</p>
+          <ul className='list-disc list-inside'>
+            {requestType === 'key' && <li>Recryption Key: The recryption key generated by the Precrypt CLI when you encrypted the file.</li>}
+            {requestType === 'file' && <li>Plaintext File: Unencrypted file you want the proxy to encrypt.</li>}
+            <li>Mint Address: The mint address of the spl token that users must hold to access the file. The proxy will verify that a requester holds the token before generating a decryption key.</li>
+            {requestType === 'key' && <li>File CID: The CID of the encrypted file stored on IPFS.</li>}
+            {requestType === 'key' && <li>File Extension: The original extension (.txt, .jpg, .zip, etc.) of the file. This is needed so that it can be re-added once the file is decrypted.</li>}
+            {requestType === 'key' && <li>Precrypt Pubkey: The public key of a keypair generated with the Precrypt CLI (in an integer array: [11, 8, 4, ...] ). This will be combined with the recryption key to make a decryption key you can use to decrypt the file.</li>}
+            <li>Key CID: The CID of the key you want the proxy to translate for you.</li>
+          </ul>
+        </div>
         {resultDiv && <div>
           {resultDiv}
         </div>}
