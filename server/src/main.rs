@@ -177,7 +177,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
                     return Poll::Ready(Some(Ok(bytes)));
                 },
             );
-            return HttpResponse::Ok().streaming(read_stream);
+            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", "inline;").streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
