@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub struct RecryptionKeys(precrypt::RecryptionKeys);
 
 #[wasm_bindgen]
-pub fn encrypt(
+pub fn precrypt_file(
     input_path: &str,
     wasm_file_key: umbral_pre::bindings_wasm::SecretKey,
     output_file: &str,
@@ -28,7 +28,7 @@ pub fn encrypt(
 pub struct DecryptionKeys(precrypt::DecryptionKeys);
 
 #[wasm_bindgen]
-pub fn recrypt(
+pub fn recrypt_keys(
     wasm_recryption_keys: RecryptionKeys,
     wasm_receiver_public: umbral_pre::bindings_wasm::PublicKey,
 ) -> DecryptionKeys {
@@ -39,7 +39,7 @@ pub fn recrypt(
     return DecryptionKeys(precrypt::recrypt_keys(wasm_recryption_keys.0, receiver_public));
 }
 
-pub fn decrypt(
+pub fn decrypt_file(
     input_path: &str,
     output_file: &str,
     wasm_receiver_key: umbral_pre::bindings_wasm::SecretKey,
