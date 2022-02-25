@@ -2,7 +2,6 @@ use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use serde::{Deserialize, Serialize};
 use generic_array::GenericArray;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::Read;
@@ -10,6 +9,7 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::thread;
 use umbral_pre::*;
+use umbral_pre::DeserializableFromArray;
 
 struct EnChunkMessage {
    bytes: Vec<u8>,
@@ -38,32 +38,31 @@ pub struct DecryptionKeys {
 }
 
 impl DecryptionKeys {
-   fn next_keys(&mut self) -> std::io::Result<(Vec<u8>, Vec<u8>)> {
+   fn next_keys(&mut self) -> (Vec<u8>, Vec<u8>) {
       let capsule: Vec<u8> = self.capsules.remove(0);
       let translated_key: Vec<u8> = self.translated_keys.remove(0);
-      return Ok((capsule, translated_key.clone()));
+      return (capsule, translated_key.clone());
    }
 }
 
-pub fn precrypt(
-   input_path: &OsStr,
+pub fn precrypt_file(
+   input_path: &str,
    file_key: SecretKey,
-   output_keys: &OsStr,
-   output_file: &OsStr,
+   output_file: &str,
    threads: usize,
    memory_size: usize,
-) -> std::io::Result<()> {
+) -> RecryptionKeys {
    if memory_size % threads != 0 {
       panic!("'memory_size' must be evenly divisible by 'threads'")
    }
 
-   let f = File::open(input_path)?;
+   let f = File::open(input_path).unwrap();
    let file_size = f.metadata().unwrap().len();
    let mut batches_remaining = (file_size as f64 / memory_size as f64).ceil() as u64;
    let mut capsules: Vec<Vec<u8>> = Vec::new();
-   // Remove output file file if it exists
+   // Remove output file if it exists
    if std::path::Path::new(output_file).exists() {
-      std::fs::remove_file(output_file)?;
+      std::fs::remove_file(output_file).unwrap();
    }
    let mut out = OpenOptions::new()
       .write(true)
@@ -80,10 +79,11 @@ pub fn precrypt(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let (batch_encrypted, batch_capsules) = precrypt_batch(&f, file_key.public_key(), threads, memory_size)?;
+      let (batch_encrypted, batch_capsules) =
+         precrypt_batch(&f, file_key.public_key(), threads, memory_size);
       capsules.extend(batch_capsules);
       // Append encrypted chunks to file
-      out.write(&batch_encrypted)?;
+      out.write(&batch_encrypted).unwrap();
       batches_remaining -= 1;
       bar.inc(1);
    }
@@ -97,26 +97,27 @@ pub fn precrypt(
       capsules: capsules,
       chunk_size: (memory_size / threads) + 40,
    };
-   std::fs::write(
-      output_keys,
-      serde_json::to_string(&recryption_keys).unwrap(),
-   )?;
-   return Ok(());
+   return recryption_keys;
 }
 
-fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
-   memory_size: usize) -> std::io::Result<(Vec<u8>, Vec<Vec<u8>>)> {
+fn precrypt_batch(
+   f: &File,
+   pubkey: PublicKey,
+   threads: usize,
+   memory_size: usize,
+) -> (Vec<u8>, Vec<Vec<u8>>) {
    let (tx, rx) = mpsc::channel();
    for x in 0..threads {
       let mut buffer = Vec::new();
       f.take((memory_size / threads) as u64)
-         .read_to_end(&mut buffer)?;
+         .read_to_end(&mut buffer)
+         .unwrap();
       if buffer.len() == 0 {
          break;
       }
       let txc = tx.clone();
       thread::spawn(move || {
-         let (capsule, cipher_chunk) = encrypt(&pubkey, &buffer).unwrap();
+         let (capsule, cipher_chunk) = umbral_pre::encrypt(&pubkey, &buffer).unwrap();
          let message = EnChunkMessage {
             bytes: cipher_chunk.to_vec(),
             index: x,
@@ -143,13 +144,10 @@ fn precrypt_batch(f: &File, pubkey: PublicKey, threads: usize,
       batch.extend(m.bytes);
       capsules.push(m.capsule);
    }
-   return Ok((batch, capsules));
+   return (batch, capsules);
 }
 
-pub fn recrypt(
-   recryption_keys: RecryptionKeys,
-   receiver_public: PublicKey,
-) -> std::io::Result<DecryptionKeys> {
+pub fn recrypt_keys(recryption_keys: RecryptionKeys, receiver_public: PublicKey) -> DecryptionKeys {
    // Fragmentation/verification is not used because we aren't using proxies
    let owner_secret: SecretKey = SecretKey::from_bytes(recryption_keys.owner_secret).unwrap();
    let translation_key = generate_kfrags(
@@ -177,24 +175,24 @@ pub fn recrypt(
       translated_keys: translated_keys,
       chunk_size: recryption_keys.chunk_size,
    };
-   return Ok(decryption_keys);
+   return decryption_keys;
 }
 
-pub fn decrypt(
-   input_path: &OsStr,
-   output_file: &OsStr,
+pub fn decrypt_file(
+   input_path: &str,
+   output_file: &str,
    receiver_key: SecretKey,
    decryption_keys: &mut DecryptionKeys,
    threads: usize,
-) -> std::io::Result<()> {
+) {
    let mut batches_remaining =
       (decryption_keys.capsules.len() as f64 / threads as f64).ceil() as u64;
    println!("Batches needed: {}", batches_remaining);
    // Read input file
-   let f = File::open(input_path)?;
+   let f = File::open(input_path).unwrap();
    // Remove output file file if it exists
    if std::path::Path::new(output_file).exists() {
-      std::fs::remove_file(output_file)?;
+      std::fs::remove_file(output_file).unwrap();
    }
    let mut out = OpenOptions::new()
       .write(true)
@@ -211,34 +209,34 @@ pub fn decrypt(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let batch_decrypted = decrypt_batch(&f, &receiver_key, decryption_keys, threads)?;
+      let batch_decrypted = decrypt_batch(&f, &receiver_key, decryption_keys, threads);
       // Append encrypted chunks to file
-      out.write(&batch_decrypted)?;
+      out.write(&batch_decrypted).unwrap();
       batches_remaining -= 1;
       bar.inc(1);
    }
    bar.finish_and_clear();
-   return Ok(());
 }
 
 fn decrypt_batch(
    f: &File,
    receiver_key: &SecretKey,
    decryption_keys: &mut DecryptionKeys,
-   threads: usize
-) -> std::io::Result<Vec<u8>> {
+   threads: usize,
+) -> Vec<u8> {
    let (tx, rx) = mpsc::channel();
    for x in 0..threads {
       let mut buffer = Vec::new();
       f.take(decryption_keys.chunk_size as u64)
-         .read_to_end(&mut buffer)?;
+         .read_to_end(&mut buffer)
+         .unwrap();
       if buffer.len() == 0 {
          break;
       }
 
       // Make clones of variables the thread will use
       let txc = tx.clone();
-      let (capsule_vec, translated_key_vec) = decryption_keys.next_keys()?;
+      let (capsule_vec, translated_key_vec) = decryption_keys.next_keys();
       let translated_key = VerifiedCapsuleFrag::from_verified_bytes(translated_key_vec).unwrap();
       let receiver_key = receiver_key.clone();
       let owner_pubkey_vec = decryption_keys.owner_pubkey.clone();
@@ -277,5 +275,5 @@ fn decrypt_batch(
    for m in messages {
       batch.extend(m.bytes);
    }
-   return Ok(batch);
+   return batch;
 }

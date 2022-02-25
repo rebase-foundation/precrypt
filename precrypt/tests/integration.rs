@@ -9,12 +9,11 @@ struct Keypair {
     secret_key: Vec<u8>,
 }
 
-
 #[test]
 fn test_integration() {
    // Setup
    // Create seller key
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args(["keygen", "tests/seller.json"])
       .output()
       .unwrap();
@@ -30,7 +29,7 @@ fn test_integration() {
 
    // Precrypt
    // Run encryption command
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "encrypt",
          "tests/secret.txt",
@@ -51,7 +50,7 @@ fn test_integration() {
 
    // Recrypt
    // Create buyer key
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args(["keygen", "tests/buyer.json"])
       .output()
       .unwrap();
@@ -65,7 +64,7 @@ fn test_integration() {
    let buyer_json: Keypair = serde_json::from_reader(BufReader::new(file)).unwrap();
    let buyer_pubkey_str = format!("{:?}", buyer_json.public_key);
    // Run recryption command
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "recrypt",
          "tests/recrypt.json",
@@ -82,7 +81,7 @@ fn test_integration() {
    );
 
    // Decrypt
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "decrypt",
          "tests/encrypted.txt",
@@ -115,7 +114,7 @@ fn test_integration() {
 fn test_integration_threaded() {
    // Setup
    // Create seller key
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args(["keygen", "tests/t_seller.json"])
       .output()
       .unwrap();
@@ -131,7 +130,7 @@ fn test_integration_threaded() {
 
    // Precrypt
    // Run precryption command
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "encrypt",
          "tests/t_secret.txt",
@@ -156,7 +155,7 @@ fn test_integration_threaded() {
 
    // Recrypt
    // Create buyer key
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args(["keygen", "tests/t_buyer.json"])
       .output()
       .unwrap();
@@ -170,7 +169,7 @@ fn test_integration_threaded() {
    let buyer_json: Keypair = serde_json::from_reader(BufReader::new(file)).unwrap();
    let buyer_pubkey_str = format!("{:?}", buyer_json.public_key);
    // Run recryption command
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "recrypt",
          "tests/t_recrypt.json",
@@ -187,7 +186,7 @@ fn test_integration_threaded() {
    );
 
    // Decrypt
-   let output = Command::new("./target/debug/precrypt")
+   let output = Command::new(".././target/debug/precrypt")
       .args([
          "decrypt",
          "tests/t_encrypted.txt",

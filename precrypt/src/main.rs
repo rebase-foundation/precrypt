@@ -1,8 +1,6 @@
-use generic_array::GenericArray;
 use clap::Arg;
 use clap::{App, AppSettings};
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io::BufReader;
 use umbral_pre::*;
@@ -10,16 +8,12 @@ use umbral_pre::*;
 mod lib;
 pub use crate::lib::*;
 
+pub mod bindings_wasm;
+
 #[derive(Serialize, Deserialize, Clone)]
 struct Keypair {
     public_key: Vec<u8>,
     secret_key: Vec<u8>,
-}
-
-fn parse_keypair_file(path: &OsStr) -> std::io::Result<SecretKey> {
-    let file = File::open(path)?;
-    let keypair_json: Keypair = serde_json::from_reader(BufReader::new(file))?;
-    return Ok(SecretKey::from_bytes(keypair_json.secret_key).unwrap());
 }
 
 fn main() -> std::io::Result<()> {
@@ -126,7 +120,9 @@ fn main() -> std::io::Result<()> {
         Some(("encrypt", sub_matches)) => {
             // Read the keypair file
             let keypair_path = sub_matches.value_of_os("owner_keypair").unwrap();
-            let file_secret: SecretKey = parse_keypair_file(&keypair_path)?;
+            let secret_file = File::open(&keypair_path).unwrap();
+            let secret_json: Keypair = serde_json::from_reader(BufReader::new(secret_file)).unwrap();
+            let wasm_secret = SecretKey::from_bytes(&secret_json.secret_key).unwrap();
 
             // Read the input file path
             let input_path = sub_matches.value_of_os("input_file").unwrap();
@@ -136,14 +132,17 @@ fn main() -> std::io::Result<()> {
             let threads: usize = sub_matches.value_of_t("threads").unwrap();
             let memory_size: usize = sub_matches.value_of_t("memory_size").unwrap();
 
-            lib::precrypt(
-                input_path,
-                file_secret,
-                &output_keys,
-                &output_file,
+            let recryption_keys = lib::precrypt_file(
+                input_path.to_str().unwrap(),
+                wasm_secret,
+                &output_file.to_str().unwrap(),
                 threads,
                 memory_size,
-            )?;
+            );
+            std::fs::write(
+                output_keys,
+                serde_json::to_string(&recryption_keys).unwrap(),
+             )?;
             Ok(())
         }
         Some(("recrypt", sub_matches)) => {
@@ -155,9 +154,9 @@ fn main() -> std::io::Result<()> {
             // Read receiver pubkey from argument
             let receiver_public_str = sub_matches.value_of("receiver_pubkey").unwrap();
             let public_vec: Vec<u8> = serde_json::from_str(receiver_public_str)?;
-            let receiver_public: PublicKey = PublicKey::from_array(&GenericArray::from_iter(public_vec)).unwrap();
+            let receiver_public = PublicKey::from_bytes(&public_vec).unwrap();
 
-            let decryption_keys = recrypt(recryption_keys, receiver_public)?;
+            let decryption_keys = recrypt_keys(recryption_keys, receiver_public);
             
             let output_path = sub_matches.value_of_os("output").unwrap();
             std::fs::write(
@@ -178,19 +177,21 @@ fn main() -> std::io::Result<()> {
 
             // Read receiver secret
             let keypair_path = sub_matches.value_of_os("receiver_keypair").unwrap();
-            let receiver_secret: SecretKey = parse_keypair_file(&keypair_path)?;
+            let secret_file = File::open(&keypair_path).unwrap();
+            let secret_json: Keypair = serde_json::from_reader(BufReader::new(secret_file)).unwrap();
+            let wasm_secret = SecretKey::from_bytes(&secret_json.secret_key).unwrap();
             // Decrypt the cipher
             let output_path = sub_matches.value_of_os("output").unwrap();
 
             let threads: usize = sub_matches.value_of_t("threads").unwrap();
 
-            decrypt(
-                input_path,
-                output_path,
-                receiver_secret,
+            decrypt_file(
+                input_path.to_str().unwrap(),
+                output_path.to_str().unwrap(),
+                wasm_secret,
                 &mut decryption_keys,
                 threads
-            )?;
+            );
             Ok(())
         }
         Some(("keygen", sub_matches)) => {
