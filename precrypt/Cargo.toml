@@ -1,7 +1,7 @@
 [package]
 name = "precrypt"
 description="Cli wrapper for the umbral-pre proxy re-encryption library with parallel processing."
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Jacob Peddicord <jacob.peddicord@hey.com>"]
 license = "GPL-3.0-only"
 edition = "2021"
