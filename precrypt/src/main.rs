@@ -4,11 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
 use umbral_pre::*;
-
-mod lib;
-pub use crate::lib::*;
-
-pub mod bindings_wasm;
+use precrypt::{precrypt_file, recrypt_keys, decrypt_file, RecryptionKeys, DecryptionKeys};
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Keypair {
@@ -132,7 +128,7 @@ fn main() -> std::io::Result<()> {
             let threads: usize = sub_matches.value_of_t("threads").unwrap();
             let memory_size: usize = sub_matches.value_of_t("memory_size").unwrap();
 
-            let recryption_keys = lib::precrypt_file(
+            let recryption_keys = precrypt_file(
                 input_path.to_str().unwrap(),
                 wasm_secret,
                 &output_file.to_str().unwrap(),

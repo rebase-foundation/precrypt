@@ -11,6 +11,8 @@ use std::thread;
 use umbral_pre::*;
 use umbral_pre::DeserializableFromArray;
 
+pub mod bindings_wasm;
+
 struct EnChunkMessage {
    bytes: Vec<u8>,
    capsule: Vec<u8>,
