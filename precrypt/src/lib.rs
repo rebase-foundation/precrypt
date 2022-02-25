@@ -119,7 +119,7 @@ fn precrypt_batch(
       }
       let txc = tx.clone();
       thread::spawn(move || {
-         let (capsule, cipher_chunk) = umbral_pre::encrypt(&pubkey, &buffer).unwrap();
+         let (capsule, cipher_chunk) = encrypt(&pubkey, &buffer).unwrap();
          let message = EnChunkMessage {
             bytes: cipher_chunk.to_vec(),
             index: x,
