@@ -115,7 +115,7 @@ pub fn precrypt_file(
    return recryption_keys;
 }
 
-fn precrypt_bytes(
+pub fn precrypt_bytes(
    mut bytes: Vec<u8>,
    pubkey: PublicKey,
    threads: usize,
@@ -165,7 +165,7 @@ fn precrypt_bytes(
    };
 }
 
-fn precrypt_bytes_async(
+pub fn precrypt_bytes_async(
    bytes: Vec<u8>,
    pubkey: PublicKey
 ) -> PrecryptBytesResult {

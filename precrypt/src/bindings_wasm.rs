@@ -8,19 +8,15 @@ use wasm_bindgen::prelude::wasm_bindgen;
 pub struct RecryptionKeys(precrypt::RecryptionKeys);
 
 #[wasm_bindgen]
-pub fn precrypt_file(
-    input_path: &str,
-    wasm_file_key: umbral_pre::bindings_wasm::SecretKey,
-    output_file: &str,
-    memory_size: usize,
-) -> RecryptionKeys {
-    let file_key = umbral_pre::SecretKey::from_array(&GenericArray::from_iter(
-        wasm_file_key.to_secret_bytes().to_vec(),
-    ))
-    .unwrap();
-    let recryption_keys =
-        precrypt::precrypt_file(input_path, file_key, output_file, 1, memory_size);
-    return RecryptionKeys(recryption_keys);
+pub struct PrecryptBytesResult(precrypt::PrecryptBytesResult);
+
+#[wasm_bindgen]
+pub fn precrypt_bytes(
+    bytes: Vec<u8>,
+    wasm_public_key: umbral_pre::bindings_wasm::PublicKey,
+) -> PrecryptBytesResult {
+    let public_key = PublicKey::from_array(&GenericArray::from_iter(wasm_public_key.to_bytes().to_vec())).unwrap();
+    return PrecryptBytesResult(precrypt::precrypt_bytes_async(bytes, public_key));
 }
 
 #[wasm_bindgen]
