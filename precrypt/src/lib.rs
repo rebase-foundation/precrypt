@@ -81,8 +81,7 @@ pub fn precrypt_file(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let (batch_encrypted, batch_capsules) =
-         precrypt_batch(&f, file_key.public_key(), threads, memory_size);
+      let (batch_encrypted, batch_capsules) = if threads > 1 {precrypt_batch(&f, file_key.public_key(), threads, memory_size)} else {precrypt_batch_sync(&f, file_key.public_key(), memory_size)};
       capsules.extend(batch_capsules);
       // Append encrypted chunks to file
       out.write(&batch_encrypted).unwrap();
@@ -147,6 +146,22 @@ fn precrypt_batch(
       capsules.push(m.capsule);
    }
    return (batch, capsules);
+}
+
+fn precrypt_batch_sync(
+   f: &File,
+   pubkey: PublicKey,
+   memory_size: usize,
+) -> (Vec<u8>, Vec<Vec<u8>>) {
+   let mut buffer = Vec::new();
+   f.take(memory_size as u64)
+      .read_to_end(&mut buffer)
+      .unwrap();
+   if buffer.len() == 0 {
+      panic!("Error reading buffer");
+   }
+   let (capsule, cipher) = encrypt(&pubkey, &buffer).unwrap();
+   return (cipher.to_vec(), vec![capsule.to_array().to_vec()]);
 }
 
 pub fn recrypt_keys(recryption_keys: RecryptionKeys, receiver_public: PublicKey) -> DecryptionKeys {

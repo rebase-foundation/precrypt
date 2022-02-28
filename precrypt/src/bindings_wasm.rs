@@ -12,7 +12,6 @@ pub fn precrypt_file(
     input_path: &str,
     wasm_file_key: umbral_pre::bindings_wasm::SecretKey,
     output_file: &str,
-    threads: usize,
     memory_size: usize,
 ) -> RecryptionKeys {
     let file_key = umbral_pre::SecretKey::from_array(&GenericArray::from_iter(
@@ -20,7 +19,7 @@ pub fn precrypt_file(
     ))
     .unwrap();
     let recryption_keys =
-        precrypt::precrypt_file(input_path, file_key, output_file, threads, memory_size);
+        precrypt::precrypt_file(input_path, file_key, output_file, 1, memory_size);
     return RecryptionKeys(recryption_keys);
 }
 

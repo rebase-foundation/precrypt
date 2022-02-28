@@ -36,6 +36,8 @@ fn test_integration() {
          "tests/seller.json",
          "tests/recrypt.json",
          "tests/encrypted.txt",
+         "-t",
+         "1",
       ])
       .output()
       .unwrap();
@@ -88,6 +90,8 @@ fn test_integration() {
          "tests/decrypt.json",
          "tests/buyer.json",
          "tests/decrypted.txt",
+         "-t",
+         "1"
       ])
       .output()
       .unwrap();
