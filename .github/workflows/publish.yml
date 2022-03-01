@@ -31,13 +31,13 @@ jobs:
         mkdir builds
     - name: Build Win64
       run: |
-        cargo rustc --release --target=x86_64-pc-windows-gnu -- -C linker=x86_64-w64-mingw32-gcc
+        cargo rustc --release --target=x86_64-pc-windows-gnu
         mkdir builds/precrypt-win64
         cp target/x86_64-pc-windows-gnu/release/swp.exe builds/precrypt-win64
         tar -C builds -czvf dist/precrypt-win64.tar.gz precrypt-win64
     - name: Build Win32
       run: |
-        cargo rustc --release --target=i686-pc-windows-gnu -- -C linker=i686-w64-mingw32-gcc -C link-args=-mwindows -C panic=abort
+        cargo rustc --release --target=i686-pc-windows-gnu
         mkdir builds/precrypt-win32
         cp target/i686-pc-windows-gnu/release/swp.exe builds/precrypt-win32
         tar -C builds -czvf dist/precrypt-win32.tar.gz precrypt-win32
