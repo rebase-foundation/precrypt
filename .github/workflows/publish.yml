@@ -46,7 +46,6 @@ jobs:
       with:
         path: osxcross
         key: ${{ runner.os }}-osxcross
-
     - name: Install Mac OS dependencies
       if: steps.cache-macos.outputs.cache-hit != 'true'
       run: |
