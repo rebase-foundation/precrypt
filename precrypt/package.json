@@ -1,13 +1,13 @@
 {
    "name": "precrypt",
-   "version": "0.3.5",
+   "version": "0.3.4",
    "description": "CLI wrapper for the umbral-pre proxy re-encryption library with parallel processing.",
    "author": "Jacob Peddicord <jacob.peddicord@hey.com>",
    "repository": "https://github.com/rebase-foundation/precrypt/tree/main/precrypt",
    "homepage": "https://precrypt.org",
    "license": "GPL-3.0-only",
    "bin": {
-     "swp": "npm/run.js"
+     "precrypt": "npm/run.js"
    },
    "scripts": {
      "preinstall": "node npm/scripts.js uninstall",
