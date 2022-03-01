@@ -23,7 +23,6 @@ jobs:
         sudo apt-get update
         sudo apt-get -y install gcc-mingw-w64-x86-64 gcc-mingw-w64-i686
         rustup target add x86_64-pc-windows-gnu
-        rustup target add i686-pc-windows-gnu
         rustup target add x86_64-unknown-linux-gnu
         rustup target add x86_64-apple-darwin
         rustup target add aarch64-apple-darwin
@@ -35,12 +34,6 @@ jobs:
         mkdir builds/precrypt-win64
         cp ../target/x86_64-pc-windows-gnu/release/precrypt.exe builds/precrypt-win64
         tar -C builds -czvf dist/precrypt-win64.tar.gz precrypt-win64
-    - name: Build Win32
-      run: |
-        cargo rustc --release --target=i686-pc-windows-gnu
-        mkdir builds/precrypt-win32
-        cp ../target/i686-pc-windows-gnu/release/precrypt.exe builds/precrypt-win32
-        tar -C builds -czvf dist/precrypt-win32.tar.gz precrypt-win32
     - name: Build Linux
       run: |
         cargo rustc --release --target=x86_64-unknown-linux-gnu
@@ -63,16 +56,26 @@ jobs:
         wget -nc https://s3.dockerproject.org/darwin/v2/MacOSX10.10.sdk.tar.xz
         mv MacOSX10.10.sdk.tar.xz tarballs/
         UNATTENDED=yes OSX_VERSION_MIN=10.7 ./build.sh
-    - name: Build Mac OS
+    - name: Build Mac OS (M1)
+      run: |
+        export PATH="$(pwd)/osxcross/target/bin:$PATH"
+        export LIBZ_SYS_STATIC=1
+        export CC=o64-clang
+        export CXX=o64-clang++
+        cargo build --release --target "aarch64-apple-darwin"
+        mkdir builds/precrypt-macos-m1
+        cp ../target/aarch64-apple-darwin/release/precrypt builds/precrypt-macos-m1
+        tar -C builds -czvf dist/precrypt-macos-m1.tar.gz precrypt-macos-m1
+     - name: Build Mac OS (Intel)
       run: |
         export PATH="$(pwd)/osxcross/target/bin:$PATH"
         export LIBZ_SYS_STATIC=1
         export CC=o64-clang
         export CXX=o64-clang++
         cargo build --release --target "x86_64-apple-darwin"
-        mkdir builds/precrypt-macos
-        cp ../target/x86_64-apple-darwin/release/precrypt builds/precrypt-macos
-        tar -C builds -czvf dist/precrypt-macos.tar.gz precrypt-macos
+        mkdir builds/precrypt-macos-intel
+        cp ../target/x86_64-apple-darwin/release/precrypt builds/precrypt-macos-intel
+        tar -C builds -czvf dist/precrypt-macos-intel.tar.gz precrypt-macos-intel
     - name: Upload release
       uses: softprops/action-gh-release@v1
       with:
