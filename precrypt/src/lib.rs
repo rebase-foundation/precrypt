@@ -11,7 +11,6 @@ use std::thread;
 use umbral_pre::*;
 use umbral_pre::DeserializableFromArray;
 
-
 struct EnChunkMessage {
    bytes: Vec<u8>,
    capsule: Vec<u8>,
@@ -25,23 +24,17 @@ struct DeChunkMessage {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RecryptionKeys {
-   pub owner_secret: Vec<u8>,
-   pub capsules: Vec<Vec<u8>>,
-   pub chunk_size: usize,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct PrecryptBytesResult {
-   pub cipher: Vec<u8>,
-   pub capsules: Vec<Vec<u8>>,
+   owner_secret: Vec<u8>,
+   capsules: Vec<Vec<u8>>,
+   chunk_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DecryptionKeys {
-   pub owner_pubkey: Vec<u8>,
-   pub capsules: Vec<Vec<u8>>,
-   pub translated_keys: Vec<Vec<u8>>,
-   pub chunk_size: usize,
+   owner_pubkey: Vec<u8>,
+   capsules: Vec<Vec<u8>>,
+   translated_keys: Vec<Vec<u8>>,
+   chunk_size: usize,
 }
 
 impl DecryptionKeys {
@@ -86,18 +79,11 @@ pub fn precrypt_file(
          .progress_chars("=>-"),
    );
    while batches_remaining > 0 {
-      let mut bytes = Vec::new();
-      f.try_clone().unwrap().take(memory_size as u64)
-         .read_to_end(&mut bytes)
-         .unwrap();
-      println!("Batch size: {:?}", bytes.len());
-      if bytes.len() == 0 {
-         break;
-      }
-      let result = precrypt_bytes(bytes, file_key.public_key(), threads, memory_size);
-      capsules.extend(result.capsules);
+      let (batch_encrypted, batch_capsules) =
+         precrypt_batch(&f, file_key.public_key(), threads, memory_size);
+      capsules.extend(batch_capsules);
       // Append encrypted chunks to file
-      out.write(&result.cipher).unwrap();
+      out.write(&batch_encrypted).unwrap();
       batches_remaining -= 1;
       bar.inc(1);
    }
@@ -114,24 +100,24 @@ pub fn precrypt_file(
    return recryption_keys;
 }
 
-pub fn precrypt_bytes(
-   mut bytes: Vec<u8>,
+fn precrypt_batch(
+   f: &File,
    pubkey: PublicKey,
    threads: usize,
    memory_size: usize,
-) -> PrecryptBytesResult {
-   if threads <= 1 { return precrypt_bytes_async(bytes, pubkey)}
-   let chunk_size = (memory_size / threads) as usize;
-   
+) -> (Vec<u8>, Vec<Vec<u8>>) {
    let (tx, rx) = mpsc::channel();
    for x in 0..threads {
-      if bytes.len() == 0 {break;}
-      let read_until = if bytes.len() > chunk_size {chunk_size} else {bytes.len()};
-      let bytes_chunk: Vec<u8> = bytes.drain(..read_until).collect();
-      println!("Chunk size: {:?}", bytes_chunk.len());
+      let mut buffer = Vec::new();
+      f.take((memory_size / threads) as u64)
+         .read_to_end(&mut buffer)
+         .unwrap();
+      if buffer.len() == 0 {
+         break;
+      }
       let txc = tx.clone();
       thread::spawn(move || {
-         let (capsule, cipher_chunk) = encrypt(&pubkey, &bytes_chunk).unwrap();
+         let (capsule, cipher_chunk) = encrypt(&pubkey, &buffer).unwrap();
          let message = EnChunkMessage {
             bytes: cipher_chunk.to_vec(),
             index: x,
@@ -158,21 +144,7 @@ pub fn precrypt_bytes(
       batch.extend(m.bytes);
       capsules.push(m.capsule);
    }
-   return PrecryptBytesResult{
-      cipher: batch, 
-      capsules: capsules
-   };
-}
-
-pub fn precrypt_bytes_async(
-   bytes: Vec<u8>,
-   pubkey: PublicKey
-) -> PrecryptBytesResult {
-   let (capsule, cipher) = encrypt(&pubkey, &bytes).unwrap();
-   return PrecryptBytesResult{
-      cipher: cipher.to_vec(), 
-      capsules: vec![capsule.to_array().to_vec()]
-   };
+   return (batch, capsules);
 }
 
 pub fn recrypt_keys(recryption_keys: RecryptionKeys, receiver_public: PublicKey) -> DecryptionKeys {
