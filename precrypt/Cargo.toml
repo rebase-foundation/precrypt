@@ -9,9 +9,6 @@ repository = "https://github.com/rebase-foundation/precrypt/tree/main/precrypt"
 readme = "README.md"
 categories = ["cryptography", "command-line-utilities"]
 
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 [dependencies]
 clap = "3.0.13"
 generic-array = "0.14.5"
