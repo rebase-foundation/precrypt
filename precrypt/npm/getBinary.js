@@ -18,7 +18,11 @@ function getPlatform() {
 	}
 
 	if (type === 'Darwin' && arch === 'x64') {
-		return 'macos';
+		return 'macosx86';
+	}
+
+	if (type === 'Darwin' && arch === 'arm64') {
+		return 'macosM1';
 	}
 
 	throw new Error(`Unsupported platform: ${type} ${arch}. Please create an issue at https://github.com/woubuc/sweep/issues`);
