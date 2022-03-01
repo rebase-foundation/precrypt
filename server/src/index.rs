@@ -40,9 +40,11 @@ pub fn html() -> String {
                   Play with the demo
                </button>
             </a>
-            <button class="border-4 lg:border-2 rounded p-4 lg:p-2 font-bold text-4xl lg:text-xl">
-               Read the docs (soon)
-            </button>
+            <a target="_blank" href="https://docs.rs/precrypt/latest/precrypt/index.html">
+               <button class="border-4 lg:border-2 rounded p-4 lg:p-2 font-bold text-4xl lg:text-xl">
+                  Read the docs
+               </button>
+               </a>
          </div>
          
          <!-- How it works -->

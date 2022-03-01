@@ -11,7 +11,6 @@ use std::thread;
 use umbral_pre::*;
 use umbral_pre::DeserializableFromArray;
 
-pub mod bindings_wasm;
 
 struct EnChunkMessage {
    bytes: Vec<u8>,
@@ -26,23 +25,23 @@ struct DeChunkMessage {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RecryptionKeys {
-   owner_secret: Vec<u8>,
-   capsules: Vec<Vec<u8>>,
-   chunk_size: usize,
+   pub owner_secret: Vec<u8>,
+   pub capsules: Vec<Vec<u8>>,
+   pub chunk_size: usize,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PrecryptBytesResult {
-   cipher: Vec<u8>,
-   capsules: Vec<Vec<u8>>,
+   pub cipher: Vec<u8>,
+   pub capsules: Vec<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DecryptionKeys {
-   owner_pubkey: Vec<u8>,
-   capsules: Vec<Vec<u8>>,
-   translated_keys: Vec<Vec<u8>>,
-   chunk_size: usize,
+   pub owner_pubkey: Vec<u8>,
+   pub capsules: Vec<Vec<u8>>,
+   pub translated_keys: Vec<Vec<u8>>,
+   pub chunk_size: usize,
 }
 
 impl DecryptionKeys {
