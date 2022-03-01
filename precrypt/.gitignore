@@ -15,3 +15,5 @@ Cargo.lock
 *.bin
 *.json
 *.txt
+
+!package.json
