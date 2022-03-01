@@ -65,7 +65,7 @@ jobs:
         mkdir builds/precrypt-macos-m1
         cp ../target/aarch64-apple-darwin/release/precrypt builds/precrypt-macos-m1
         tar -C builds -czvf dist/precrypt-macos-m1.tar.gz precrypt-macos-m1
-     - name: Build Mac OS Intel
+    - name: Build Mac OS Intel
       run: |
         export PATH="$(pwd)/osxcross/target/bin:$PATH"
         export LIBZ_SYS_STATIC=1
