@@ -33,19 +33,19 @@ jobs:
       run: |
         cargo rustc --release --target=x86_64-pc-windows-gnu
         mkdir builds/precrypt-win64
-        cp target/x86_64-pc-windows-gnu/release/precrypt.exe builds/precrypt-win64
+        cp ../target/x86_64-pc-windows-gnu/release/precrypt.exe builds/precrypt-win64
         tar -C builds -czvf dist/precrypt-win64.tar.gz precrypt-win64
     - name: Build Win32
       run: |
         cargo rustc --release --target=i686-pc-windows-gnu
         mkdir builds/precrypt-win32
-        cp target/i686-pc-windows-gnu/release/precrypt.exe builds/precrypt-win32
+        cp ../target/i686-pc-windows-gnu/release/precrypt.exe builds/precrypt-win32
         tar -C builds -czvf dist/precrypt-win32.tar.gz precrypt-win32
     - name: Build Linux
       run: |
         cargo rustc --release --target=x86_64-unknown-linux-gnu
         mkdir builds/precrypt-linux
-        cp target/x86_64-unknown-linux-gnu/release/precrypt builds/precrypt-linux
+        cp ../target/x86_64-unknown-linux-gnu/release/precrypt builds/precrypt-linux
         tar -C builds -czvf dist/precrypt-linux.tar.gz precrypt-linux
     - name: Cache Mac OS dependencies
       id: cache-macos
@@ -71,7 +71,7 @@ jobs:
         export CXX=o64-clang++
         cargo build --release --target "x86_64-apple-darwin"
         mkdir builds/precrypt-macos
-        cp target/x86_64-apple-darwin/release/precrypt builds/precrypt-macos
+        cp ../target/x86_64-apple-darwin/release/precrypt builds/precrypt-macos
         tar -C builds -czvf dist/precrypt-macos.tar.gz precrypt-macos
     - name: Upload release
       uses: softprops/action-gh-release@v1
