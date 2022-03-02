@@ -1,0 +1,35 @@
+{
+  "name": "precrypt-js",
+  "version": "0.1.0",
+  "description": "Wrapper for the umbral-pre proxy re-encryption library with parallel processing",
+  "main": "src/index.js",
+  "repository": "https://github.com/rebase-foundation/precrypt/tree/main/precrypt-js",
+  "author": "Jacob Peddicord",
+  "license": "GPL-3.0-only",
+  "private": false,
+  "dependencies": {
+    "@nucypher/umbral-pre": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/filesystem": "^0.0.32",
+    "@types/node": "^16.9.4",
+    "eslint": "^7.32.0",
+    "shx": "^0.3.3",
+    "ts-node": "^10.2.1",
+    "tslib": "^2.3.1",
+    "typescript": "^4.5.5"
+  },
+  "scripts": {
+    "build": "shx rm -rf dist && tsc -b",
+    "lint": "eslint . --ext .ts --config .eslintrc",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "posttest": "yarn lint",
+    "prepack": "yarn build && oclif manifest && oclif readme",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "version": "oclif readme && git add README.md",
+    "prepublishOnly": "yarn build"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  }
+}

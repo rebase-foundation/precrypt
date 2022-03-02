@@ -19,4 +19,5 @@ RUN npm i -g carbites-cli
 # Cleanup and run
 RUN rm -rf /var/lib/apt/lists/*
 COPY --from=rust-env /app/target/release/server /
+EXPOSE 8000
 CMD ["/server"]
