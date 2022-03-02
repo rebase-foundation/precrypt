@@ -270,7 +270,7 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
     let host = match env::var("SERVER_HOST") {
         Ok(host) => host,
-        Err(_e) => "0.0.0.0:8000".to_string(),
+        Err(_e) => "0.0.0.0:8080".to_string(),
     };
 
     match env::var("DATA") {

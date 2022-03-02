@@ -19,7 +19,7 @@ DATA="/data"
 
 [[services]]
   http_checks = []
-  internal_port = 8000
+  internal_port = 8080
   processes = ["app"]
   protocol = "tcp"
   script_checks = []
@@ -38,7 +38,7 @@ DATA="/data"
     port = 443
 
   [[services.tcp_checks]]
-    grace_period = "1s"
+    grace_period = "30s"
     interval = "15s"
     restart_limit = 0
     timeout = "2s"
