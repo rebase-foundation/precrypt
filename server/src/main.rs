@@ -158,6 +158,8 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             let result_dir_path = build_path(PathBuilder::RequestResultDir, &uuid);
             let pattern = format!("{}/{}.*", result_dir_path, uuid);
             let path = glob(&pattern).unwrap().next().unwrap().unwrap();
+            let pathc = path.clone();
+            let (_, extension) = pathc.to_str().unwrap().rsplit_once(".").unwrap();
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
@@ -177,7 +179,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
                     return Poll::Ready(Some(Ok(bytes)));
                 },
             );
-            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", "inline;").streaming(read_stream);
+            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", format!("inline ; filename = \"download.{}\"", extension)).streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
