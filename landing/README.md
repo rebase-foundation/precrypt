@@ -1,6 +1,6 @@
 # Demo
 
-This is a homepage for the Precrypt protocol.
+This is a landing page for the Precrypt protocol.
 
 # Usage
 
