@@ -9,7 +9,7 @@ import { useLocalStorage } from '../lib/useLocalStorage';
 const Home: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [resultDiv, setResultDiv] = useState((<div></div>));
-  const [proxyEndpoint, setProxyEndpoint] = useLocalStorage('endpoint', 'https://precrypt.org');
+  const [proxyEndpoint, setProxyEndpoint] = useLocalStorage('endpoint', 'https://api.precrypt.org');
   const [requestType, setRequestType] = useLocalStorage('type', '');
   const { publicKey, signMessage } = useWallet();
 
