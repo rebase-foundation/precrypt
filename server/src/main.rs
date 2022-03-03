@@ -30,9 +30,6 @@ use crate::util::error_maps::var_error_map;
 use crate::util::get_secrets::get_secrets;
 use crate::util::path_builder::{build_path, PathBuilder};
 
-mod index;
-use crate::index::html;
-
 const THREADS: usize = 10;
 const MEM_SIZE: usize = 50000000;
 
@@ -260,11 +257,6 @@ async fn key_request(req_body: String) -> Result<HttpResponse, Error> {
     return Ok(HttpResponse::Ok().body(response));
 }
 
-#[get("/")]
-async fn home() -> impl Responder {
-    return HttpResponse::Ok().content_type("text/html").body(html());
-}
-
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -288,7 +280,6 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(cors)
-            .service(home)
             .service(key_store)
             .service(key_request)
             .service(keygen)
