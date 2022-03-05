@@ -315,7 +315,7 @@ const Home: NextPage = () => {
             </p>
             <select className='border-2 rounded p-1' value={proxyEndpoint} onChange={(e) => setProxyEndpoint(e.target.value)}>
               <option value="https://api.precrypt.org">https://api.precrypt.org</option>
-              <option value="http://localhost:8000">http://localhost:8000</option>
+              <option value="http://localhost:8080">http://localhost:8080</option>
             </select>
             {/* <p className='text-4xl pl-2 pb-1 text-green-500'>•</p> */}
           </div>
