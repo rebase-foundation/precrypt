@@ -19,12 +19,12 @@ pub struct KeyRequest {
     pub sol_signed_message: Vec<u8>, // sol signed message
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct SolanaJSONRPCResult {
     result: SolanaJSONRPCResultValue,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct SolanaJSONRPCResultValue {
     value: Vec<Value>,
 }
@@ -61,6 +61,8 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
     let file_cid = data.file_cid;
     let file_extension = data.file_extension;
     let recryption_keys = data.recryption_keys;
+
+    println!("Mint {:?}", mint);
 
     // Verify that the getter holds the token
     // Verify signature
@@ -100,9 +102,11 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
 
     let response_body_bytes = response.unwrap().body().await.unwrap();
     let response_body: SolanaJSONRPCResult = serde_json::from_slice(&response_body_bytes).unwrap();
+    println!("response_body, {:?}", response_body);
     let values = response_body.result.value;
     let mut owns_token = false;
     for value in values {
+        println!("value, {:?}", value);
         let balance_str = value
             .get("account")
             .unwrap()
@@ -114,10 +118,10 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
             .unwrap()
             .get("tokenAmount")
             .unwrap()
-            .get("uiAmountString")
+            .get("amount")
             .unwrap();
-        let balance: f64 = balance_str.as_str().unwrap().parse::<f64>().unwrap();
-        if balance >= 1.0 {
+        let balance: u64 = balance_str.as_str().unwrap().parse::<u64>().unwrap();
+        if balance > 0 {
             owns_token = true;
         }
     }
