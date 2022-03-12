@@ -1,4 +1,3 @@
-use glob::glob;
 use actix_cors::Cors;
 use actix_multipart::Multipart;
 use actix_web::web::Bytes;
@@ -10,6 +9,7 @@ use futures_util::never::Never;
 use futures_util::stream::poll_fn;
 use futures_util::stream::StreamExt;
 use futures_util::task::Poll;
+use glob::glob;
 use serde_json::{json, Value};
 use std::env;
 use std::fs;
@@ -111,9 +111,7 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
         )
         .await;
     });
-    return Ok(HttpResponse::Ok().json(&json!({
-        "uuid": request_uuid
-    })));
+    return Ok(HttpResponse::Ok().json(&json!({ "uuid": request_uuid })));
 }
 
 #[post("/file/request")]
@@ -131,9 +129,7 @@ async fn file_request(req_body: String) -> Result<HttpResponse, Error> {
     });
 
     // Return the uuid
-    return Ok(HttpResponse::Ok().json(&json!({
-        "uuid": request_uuid
-    })));
+    return Ok(HttpResponse::Ok().json(&json!({ "uuid": request_uuid })));
 }
 
 #[get("file/{uuid}")]
@@ -176,7 +172,13 @@ async fn file_get(req: HttpRequest) -> impl Responder {
                     return Poll::Ready(Some(Ok(bytes)));
                 },
             );
-            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", format!("inline ; filename = \"download.{}\"", extension)).streaming(read_stream);
+            return HttpResponse::Ok()
+                .content_type("application/octet-stream")
+                .header(
+                    "Content-Disposition",
+                    format!("inline ; filename = \"download.{}\"", extension),
+                )
+                .streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
@@ -257,6 +259,11 @@ async fn key_request(req_body: String) -> Result<HttpResponse, Error> {
     return Ok(HttpResponse::Ok().body(response));
 }
 
+#[get("/")]
+async fn index() -> Result<HttpResponse, Error> {
+    return Ok(HttpResponse::Ok().body("Precrypt!"));
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -287,6 +294,7 @@ async fn main() -> std::io::Result<()> {
             .service(file_request)
             .service(file_status)
             .service(file_get)
+            .service(index)
     })
     .bind(host)?
     .run()
