@@ -14,6 +14,7 @@ use crate::util::car::upload_cars;
 pub async fn store(
    request_uuid: String,
    mint: String,
+   file_name: String,
    file_extension: String,
    orion_secret: String,
    web3_token: String,
@@ -62,6 +63,7 @@ pub async fn store(
       recryption_keys: recryption_keys,
       mint: mint,
       file_cid: file_cid,
+      file_name: file_name,
       file_extension: file_extension
    };
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)

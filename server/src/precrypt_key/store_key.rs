@@ -9,6 +9,7 @@ pub struct KeyStoreRequest {
     pub recryption_keys: RecryptionKeys,
     pub mint: String,
     pub file_cid: String,
+    pub file_name: String, 
     pub file_extension: String
 }
 

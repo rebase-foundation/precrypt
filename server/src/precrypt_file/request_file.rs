@@ -84,8 +84,8 @@ pub async fn request(
       fs::create_dir(&results_dir).unwrap();
    }
    let plaintext_path = build_path(PathBuilder::RequestResult, &request_uuid);
-   // Add proper file extension
-   let plaintext_path = plaintext_path.replace(".bin", &format!(".{}", &key_response.file_extension));
+   // Add proper file name extension to path for later
+   let plaintext_path = plaintext_path.replace(".bin", &format!(".{}.{}", &key_response.file_name, &key_response.file_extension));
    decrypt(
       OsStr::new(&cipher_file_path),
       OsStr::new(&plaintext_path),
@@ -94,6 +94,6 @@ pub async fn request(
       threads,
    )
    .unwrap();
-   fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
+   // fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
    println!("DONE!");
 }

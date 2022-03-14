@@ -43,6 +43,7 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // Write file to disk using multipart stream
     let mut file_count = 0;
     let mut mint: Option<String> = None;
+    let mut file_name: Option<String> = None;
     let mut file_extension: Option<String> = None;
     while let Some(item) = payload.next().await {
         file_count += 1;
@@ -63,13 +64,14 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
             }
             2 => {
                 let mut field = item.unwrap();
-                let file_name: String = field
+                let file_path: String = field
                     .content_disposition()
                     .unwrap()
                     .get_filename()
                     .unwrap()
                     .to_string();
-                let (_, ext) = file_name.rsplit_once(".").unwrap();
+                let (name, ext) = file_path.rsplit_once(".").unwrap();
+                file_name = Some(name.to_string());
                 file_extension = Some(ext.to_string());
                 println!(
                     "Uploading: {}",
@@ -95,14 +97,16 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
     let request_uuid_c = request_uuid.clone();
     let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
     let mint = mint.unwrap().clone();
-    if file_extension.is_none() {
+    if file_extension.is_none() || file_name.is_none() {
         return Ok(HttpResponse::BadRequest().body("Invalid file field provided"));
     }
     let file_extension = file_extension.unwrap().clone();
+    let file_name = file_name.unwrap().clone();
     actix_web::rt::spawn(async move {
         store_file::store(
             request_uuid_c,
             mint,
+            file_name, 
             file_extension,
             orion_string,
             web3_token,
@@ -152,7 +156,8 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             let pattern = format!("{}/{}.*", result_dir_path, uuid);
             let path = glob(&pattern).unwrap().next().unwrap().unwrap();
             let pathc = path.clone();
-            let (_, extension) = pathc.to_str().unwrap().rsplit_once(".").unwrap();
+            // The file is formatted results_dir/uuid.file_name.file_extension
+            let (_, file_name) = pathc.to_str().unwrap().rsplit_once(".").unwrap();
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
@@ -172,13 +177,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
                     return Poll::Ready(Some(Ok(bytes)));
                 },
             );
-            return HttpResponse::Ok()
-                .content_type("application/octet-stream")
-                .header(
-                    "Content-Disposition",
-                    format!("inline ; filename = \"download.{}\"", extension),
-                )
-                .streaming(read_stream);
+            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", format!("inline ; filename = \"{}\"", file_name)).streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
