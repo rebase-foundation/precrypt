@@ -94,6 +94,6 @@ pub async fn request(
       threads,
    )
    .unwrap();
-   // fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
+   fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
    println!("DONE!");
 }

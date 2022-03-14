@@ -24,6 +24,7 @@ const Home: NextPage = () => {
   const [mintAddress, setMintAddress] = useLocalStorage('mint', '');
   const [fileCID, setFileCID] = useLocalStorage('fileCID', '');
   const [fileExtension, setFileExtension] = useLocalStorage('extension', '');
+  const [fileName, setFileName] = useLocalStorage('fileName', '');
 
   // Request Key Params
   const [keyCID, setKeyCID] = useLocalStorage('keyCID', '');
@@ -43,6 +44,7 @@ const Home: NextPage = () => {
       recryption_keys: JSON.parse(recryptionKeyString),
       mint: mintAddress,
       file_cid: fileCID,
+      file_name: fileName,
       file_extension: fileExtension,
     });
     console.log(body);
@@ -135,7 +137,7 @@ const Home: NextPage = () => {
             >
               {fileCID}
             </a>{' '}
-            with extension: {json['file_extension']}
+           Name: {json['file_name']}{json['file_extension']}
           </p>
           {decryptKey && (
             <button
@@ -490,6 +492,16 @@ const Home: NextPage = () => {
               </label>
 
               <label>
+                File Name:
+                <input
+                  className="border ml-2"
+                  type={'text'}
+                  onChange={(e) => setFileName(e.target.value)}
+                  value={fileName}
+                />
+              </label>
+
+              <label>
                 File Extension:
                 <input
                   className="border ml-2"
@@ -506,6 +518,7 @@ const Home: NextPage = () => {
                   !recryptionKeyString ||
                   !mintAddress ||
                   !fileCID ||
+                  !fileName ||
                   !fileExtension
                 }
                 className="border border-black rounded bg-gray-300 px-2 mx-auto disabled:opacity-20"

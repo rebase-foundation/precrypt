@@ -82,7 +82,7 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
    // Verify solana pubkey owns token from mint
    let client = Client::default();
    let response = client
-      .post("https://api.testnet.solana.com/")
+      .post("https://ssc-dao.genesysgo.net/")
       .header("Content-Type", "application/json")
       .send_body(json!({
           "jsonrpc": "2.0",

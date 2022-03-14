@@ -157,7 +157,7 @@ async fn file_get(req: HttpRequest) -> impl Responder {
             let path = glob(&pattern).unwrap().next().unwrap().unwrap();
             let pathc = path.clone();
             // The file is formatted results_dir/uuid.file_name.file_extension
-            let (_, file_name) = pathc.to_str().unwrap().rsplit_once(".").unwrap();
+            let (_, file_name) = pathc.to_str().unwrap().split_once(".").unwrap();
             let mem_size: u64 = MEM_SIZE.try_into().unwrap();
             let mut seek_index: u64 = 0;
             let read_stream = poll_fn(
