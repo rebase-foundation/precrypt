@@ -1,15 +1,14 @@
-use precrypt::{precrypt, RecryptionKeys};
+use precrypt::{precrypt_file};
 use serde_json::json;
-use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use umbral_pre::*;
 
 use crate::precrypt_key::*;
 
-use crate::util::path_builder::{build_path, PathBuilder};
-use crate::util::command::run_command;
 use crate::util::car::upload_cars;
+use crate::util::command::run_command;
+use crate::util::path_builder::{build_path, PathBuilder};
 
 pub async fn store(
    request_uuid: String,
@@ -26,18 +25,16 @@ pub async fn store(
 
    // Encrypt file using precrypt
    println!("Encrypting...");
-   let recrypt_key_path = build_path(PathBuilder::RecryptKey, &request_uuid);
    let cipher_file_path = build_path(PathBuilder::Cipher, &request_uuid);
    let file_key = SecretKey::random();
-   precrypt(
-      OsStr::new(&plaintext_path),
+
+   let recryption_keys = precrypt_file(
+      &plaintext_path,
       file_key,
-      OsStr::new(&recrypt_key_path),
-      OsStr::new(&cipher_file_path),
+      &cipher_file_path,
       threads,
       mem_size,
-   )
-   .unwrap();
+   );
 
    // Prep encrypted file for IPFS
    println!("Prepping cipher");
@@ -45,11 +42,13 @@ pub async fn store(
    run_command(format!(
       "ipfs-car --wrapWithDirectory false --pack {} --output {}",
       cipher_file_path, cipher_car_path
-   )).unwrap();
+   ))
+   .unwrap();
    run_command(format!(
       "carbites split --size 90MB --strategy treewalk {}",
       cipher_car_path
-   )).unwrap();
+   ))
+   .unwrap();
 
    // Upload encrypted file to IPFS
    println!("Storing cipher...");
@@ -58,21 +57,18 @@ pub async fn store(
    // Store Key
    println!("Storing key...");
    let file_cid: String = file_root_cid.to_string();
-   let recryption_keys_array = std::fs::read(recrypt_key_path).unwrap();
-   let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array).unwrap();
    let key_store = store_key::KeyStoreRequest {
       recryption_keys: recryption_keys,
       network: network,
       mint: mint,
       file_cid: file_cid,
       file_name: file_name,
-      file_extension: file_extension
+      file_extension: file_extension,
    };
    let key_response_json = store_key::store(key_store, orion_secret, web3_token)
       .await
       .unwrap();
    let key_cid = key_response_json["cid"].to_string().replace("\"", "");
-   
    // Cleanup created files
    fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
 

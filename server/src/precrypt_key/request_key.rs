@@ -92,6 +92,7 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
    } else {
       panic!("INVALID NETWORK");
    }
+
    let client = Client::default();
    let response = client
       .post(rpc_endpoint)
@@ -144,7 +145,7 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
    // Generate the decryption keys
    let precrypt_pubkey =
       PublicKey::from_array(&GenericArray::from_iter(request.precrypt_pubkey)).unwrap();
-   let decryption_keys = precrypt::recrypt(recryption_keys, precrypt_pubkey).unwrap();
+   let decryption_keys = precrypt::recrypt_keys(recryption_keys, precrypt_pubkey);
    let key_response = KeyResponse {
       file_cid: file_cid,
       file_name: file_name,

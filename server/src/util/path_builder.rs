@@ -3,7 +3,6 @@ use std::env;
 pub enum PathBuilder {
    TaskDir,
    Plaintext,
-   RecryptKey,
    CipherCar,
    CarPattern,
    Cipher,
@@ -21,9 +20,6 @@ pub fn build_path(path: PathBuilder, uuid: &String) -> String {
       }
       PathBuilder::Plaintext => {
          format!("{}/plaintext.bin", uuid)
-      }
-      PathBuilder::RecryptKey => {
-         format!("{}/recrypt.json", uuid)
       }
       PathBuilder::CipherCar => {
          format!("{}/cipher.car", uuid)

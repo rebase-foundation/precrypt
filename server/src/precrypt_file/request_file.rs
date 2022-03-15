@@ -2,9 +2,8 @@ use std::io::Write;
 use crate::fs::OpenOptions;
 use actix_web::client::Client;
 use futures_util::StreamExt;
-use precrypt::decrypt;
+use precrypt::decrypt_file;
 use serde::{Deserialize, Serialize};
-use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 
@@ -86,14 +85,13 @@ pub async fn request(
    let plaintext_path = build_path(PathBuilder::RequestResult, &request_uuid);
    // Add proper file name extension to path for later
    let plaintext_path = plaintext_path.replace(".bin", &format!(".{}.{}", &key_response.file_name, &key_response.file_extension));
-   decrypt(
-      OsStr::new(&cipher_file_path),
-      OsStr::new(&plaintext_path),
+   decrypt_file(
+      &cipher_file_path,
+      &plaintext_path,
       receiver_secret,
       &mut key_response.decryption_keys,
       threads,
-   )
-   .unwrap();
+   );
    fs::remove_dir_all(build_path(PathBuilder::TaskDir, &request_uuid)).unwrap();
    println!("DONE!");
 }
