@@ -11,6 +11,9 @@ use umbral_pre::*;
 
 use crate::store_key::*;
 
+const SOL_MAINNET: &str = "https://ssc-dao.genesysgo.net/";
+const SOL_TESTNET: &str = "https://api.testnet.solana.com/";
+
 #[derive(Serialize, Deserialize)]
 pub struct KeyRequest {
    pub key_cid: String,
@@ -57,6 +60,7 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
    let decrypted_bytes = aead::open(&secret_key, &response_body).unwrap();
    let decrypted_str = str::from_utf8(&decrypted_bytes).unwrap();
    let data: KeyStoreRequest = serde_json::from_str(&decrypted_str).unwrap();
+   let network = data.network;
    let mint = data.mint;
    let file_cid = data.file_cid;
    let file_name = data.file_name;
@@ -80,9 +84,17 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
    let sol_pubkey = bs58::encode(request.sol_pubkey).into_string();
 
    // Verify solana pubkey owns token from mint
+   let rpc_endpoint: String;
+   if network == "SOL_MAINNET" { 
+      rpc_endpoint = SOL_MAINNET.to_string(); 
+   } else if network == "SOL_TESTNET" { 
+      rpc_endpoint = SOL_TESTNET.to_string();
+   } else {
+      panic!("INVALID NETWORK");
+   }
    let client = Client::default();
    let response = client
-      .post("https://ssc-dao.genesysgo.net/")
+      .post(rpc_endpoint)
       .header("Content-Type", "application/json")
       .send_body(json!({
           "jsonrpc": "2.0",

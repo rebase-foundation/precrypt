@@ -13,6 +13,7 @@ use crate::util::car::upload_cars;
 
 pub async fn store(
    request_uuid: String,
+   network: String,
    mint: String,
    file_name: String,
    file_extension: String,
@@ -61,6 +62,7 @@ pub async fn store(
    let recryption_keys: RecryptionKeys = serde_json::from_slice(&recryption_keys_array).unwrap();
    let key_store = store_key::KeyStoreRequest {
       recryption_keys: recryption_keys,
+      network: network,
       mint: mint,
       file_cid: file_cid,
       file_name: file_name,

@@ -4,9 +4,11 @@ use precrypt::RecryptionKeys;
 use serde::{Deserialize, Serialize};
 use serde_json::value::Value;
 
+
 #[derive(Serialize, Deserialize)]
 pub struct KeyStoreRequest {
     pub recryption_keys: RecryptionKeys,
+    pub network: String,
     pub mint: String,
     pub file_cid: String,
     pub file_name: String, 

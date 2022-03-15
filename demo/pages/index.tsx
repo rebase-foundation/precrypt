@@ -21,6 +21,7 @@ const Home: NextPage = () => {
     'recryptKey',
     ''
   );
+  const [network, setNetwork] = useLocalStorage('network', 'SOL_MAINNET');
   const [mintAddress, setMintAddress] = useLocalStorage('mint', '');
   const [fileCID, setFileCID] = useLocalStorage('fileCID', '');
   const [fileExtension, setFileExtension] = useLocalStorage('extension', '');
@@ -42,6 +43,7 @@ const Home: NextPage = () => {
     setResultDiv(<div></div>);
     const body = JSON.stringify({
       recryption_keys: JSON.parse(recryptionKeyString),
+      network: network,
       mint: mintAddress,
       file_cid: fileCID,
       file_name: fileName,
@@ -137,7 +139,7 @@ const Home: NextPage = () => {
             >
               {fileCID}
             </a>{' '}
-           Name: {json['file_name']}{json['file_extension']}
+            Name: {json['file_name']}{json['file_extension']}
           </p>
           {decryptKey && (
             <button
@@ -176,6 +178,7 @@ const Home: NextPage = () => {
     if (!mintAddress || !uploadFile) return;
     setIsLoading(true);
     const formData = new FormData();
+    formData.append('network', network);
     formData.append('mint', mintAddress);
     formData.append('', uploadFile as Blob);
     console.log(formData);
@@ -471,6 +474,20 @@ const Home: NextPage = () => {
                 ></input>
               </label>
 
+              <p className="pr-2">Network:</p>
+              <select
+                className="border-2 rounded p-1"
+                value={network}
+                onChange={(e) => setNetwork(e.target.value)}
+              >
+                <option value="SOL_MAINNET">
+                  Solana: Mainnet-beta
+                </option>
+                <option value="SOL_TESTNET">
+                  Solana: Testnet
+                </option>
+              </select>
+
               <label>
                 Mint Address:
                 <input
@@ -582,6 +599,20 @@ const Home: NextPage = () => {
                   }}
                 ></input>
               </label>
+
+              <p className="pr-2">Network:</p>
+              <select
+                className="border-2 rounded p-1"
+                value={network}
+                onChange={(e) => setNetwork(e.target.value)}
+              >
+                <option value="SOL_MAINNET">
+                  Solana: Mainnet-beta
+                </option>
+                <option value="SOL_TESTNET">
+                  Solana: Testnet
+                </option>
+              </select>
 
               <label>
                 Mint Address:

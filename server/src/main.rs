@@ -42,6 +42,7 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
 
     // Write file to disk using multipart stream
     let mut file_count = 0;
+    let mut network: Option<String> = None;
     let mut mint: Option<String> = None;
     let mut file_name: Option<String> = None;
     let mut file_extension: Option<String> = None;
@@ -49,6 +50,25 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
         file_count += 1;
         match file_count {
             1 => {
+                let mut network_field = item.unwrap();
+                let field_content = network_field.content_disposition().unwrap();
+                let field_name = field_content.get_name().unwrap();
+                if field_name != "network" {
+                    panic!("Invalid field: expected 'network'")
+                }
+
+                let mut bytes: Vec<u8> = Vec::new();
+                while let Some(chunk) = network_field.next().await {
+                    bytes.append(&mut chunk.unwrap().to_vec());
+                }
+                let network_str = std::str::from_utf8(&bytes).unwrap().to_string();
+                if !(["SOL_MAINNET".to_string(), "SOL_TESTNET".to_string()].contains(&network_str)) {
+                    return Ok(HttpResponse::BadRequest()
+                        .body("Invalid network, must be 'SOL_MAINNET' or 'SOL_TESTNET'"));
+                }
+                network = Some(network_str);
+            }
+            2 => {
                 let mut mint_field = item.unwrap();
                 let field_content = mint_field.content_disposition().unwrap();
                 let field_name = field_content.get_name().unwrap();
@@ -62,7 +82,7 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
                 }
                 mint = Some(std::str::from_utf8(&bytes).unwrap().to_string());
             }
-            2 => {
+            3 => {
                 let mut field = item.unwrap();
                 let file_path: String = field
                     .content_disposition()
@@ -96,6 +116,7 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
 
     let request_uuid_c = request_uuid.clone();
     let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
+    let network = network.unwrap().clone();
     let mint = mint.unwrap().clone();
     if file_extension.is_none() || file_name.is_none() {
         return Ok(HttpResponse::BadRequest().body("Invalid file field provided"));
@@ -105,8 +126,9 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
     actix_web::rt::spawn(async move {
         store_file::store(
             request_uuid_c,
+            network,
             mint,
-            file_name, 
+            file_name,
             file_extension,
             orion_string,
             web3_token,
@@ -177,7 +199,13 @@ async fn file_get(req: HttpRequest) -> impl Responder {
                     return Poll::Ready(Some(Ok(bytes)));
                 },
             );
-            return HttpResponse::Ok().content_type("application/octet-stream").header("Content-Disposition", format!("inline ; filename = \"{}\"", file_name)).streaming(read_stream);
+            return HttpResponse::Ok()
+                .content_type("application/octet-stream")
+                .header(
+                    "Content-Disposition",
+                    format!("inline ; filename = \"{}\"", file_name),
+                )
+                .streaming(read_stream);
         }
         _ => panic!("Invalid uuid"),
     }
@@ -242,6 +270,10 @@ async fn keygen() -> impl Responder {
 async fn key_store(req_body: String) -> Result<HttpResponse, Error> {
     let request: store_key::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
     let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
+    if !(["SOL_MAINNET".to_string(), "SOL_TESTNET".to_string()].contains(&request.network)) {
+        return Ok(HttpResponse::BadRequest()
+            .body("Invalid network, must be 'SOL_MAINNET' or 'SOL_TESTNET'"));
+    }
     let response = store_key::store(request, orion_string, web3_token)
         .await
         .unwrap();
