@@ -85,9 +85,9 @@ pub async fn request(request: KeyRequest, orion_secret: String) -> std::io::Resu
 
    // Verify solana pubkey owns token from mint
    let rpc_endpoint: String;
-   if network == "SOL_MAINNET" { 
+   if network == "sol-mainnet-beta" { 
       rpc_endpoint = SOL_MAINNET.to_string(); 
-   } else if network == "SOL_TESTNET" { 
+   } else if network == "sol-testnet" { 
       rpc_endpoint = SOL_TESTNET.to_string();
    } else {
       panic!("INVALID NETWORK");

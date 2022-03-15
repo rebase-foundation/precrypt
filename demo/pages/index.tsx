@@ -21,7 +21,7 @@ const Home: NextPage = () => {
     'recryptKey',
     ''
   );
-  const [network, setNetwork] = useLocalStorage('network', 'SOL_MAINNET');
+  const [network, setNetwork] = useLocalStorage('network', 'sol_mainnet-beta');
   const [mintAddress, setMintAddress] = useLocalStorage('mint', '');
   const [fileCID, setFileCID] = useLocalStorage('fileCID', '');
   const [fileExtension, setFileExtension] = useLocalStorage('extension', '');
@@ -480,10 +480,10 @@ const Home: NextPage = () => {
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
               >
-                <option value="SOL_MAINNET">
+                <option value="sol-mainnet-beta">
                   Solana: Mainnet-beta
                 </option>
-                <option value="SOL_TESTNET">
+                <option value="sol-testnet">
                   Solana: Testnet
                 </option>
               </select>
@@ -606,10 +606,10 @@ const Home: NextPage = () => {
                 value={network}
                 onChange={(e) => setNetwork(e.target.value)}
               >
-                <option value="SOL_MAINNET">
+                <option value="sol-mainnet-beta">
                   Solana: Mainnet-beta
                 </option>
-                <option value="SOL_TESTNET">
+                <option value="sol-testnet">
                   Solana: Testnet
                 </option>
               </select>

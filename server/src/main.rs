@@ -62,9 +62,9 @@ async fn file_store(mut payload: Multipart) -> Result<HttpResponse, Error> {
                     bytes.append(&mut chunk.unwrap().to_vec());
                 }
                 let network_str = std::str::from_utf8(&bytes).unwrap().to_string();
-                if !(["SOL_MAINNET".to_string(), "SOL_TESTNET".to_string()].contains(&network_str)) {
+                if !(["sol-mainnet-beta".to_string(), "sol-testnet".to_string()].contains(&network_str)) {
                     return Ok(HttpResponse::BadRequest()
-                        .body("Invalid network, must be 'SOL_MAINNET' or 'SOL_TESTNET'"));
+                        .body("Invalid network, must be 'sol-mainnet-beta' or 'sol-testnet'"));
                 }
                 network = Some(network_str);
             }
@@ -270,9 +270,9 @@ async fn keygen() -> impl Responder {
 async fn key_store(req_body: String) -> Result<HttpResponse, Error> {
     let request: store_key::KeyStoreRequest = serde_json::from_str(&req_body).unwrap();
     let (orion_string, web3_token) = get_secrets().map_err(var_error_map)?;
-    if !(["SOL_MAINNET".to_string(), "SOL_TESTNET".to_string()].contains(&request.network)) {
+    if !(["sol-mainnet-beta".to_string(), "sol-testnet".to_string()].contains(&request.network)) {
         return Ok(HttpResponse::BadRequest()
-            .body("Invalid network, must be 'SOL_MAINNET' or 'SOL_TESTNET'"));
+            .body("Invalid network, must be 'sol-mainnet-beta' or 'sol-testnet'"));
     }
     let response = store_key::store(request, orion_string, web3_token)
         .await
