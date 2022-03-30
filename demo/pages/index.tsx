@@ -21,7 +21,7 @@ const Home: NextPage = () => {
     'recryptKey',
     ''
   );
-  const [network, setNetwork] = useLocalStorage('network', 'sol_mainnet-beta');
+  const [network, setNetwork] = useLocalStorage('network', 'sol-mainnet-beta');
   const [mintAddress, setMintAddress] = useLocalStorage('mint', '');
   const [fileCID, setFileCID] = useLocalStorage('fileCID', '');
   const [fileExtension, setFileExtension] = useLocalStorage('extension', '');
